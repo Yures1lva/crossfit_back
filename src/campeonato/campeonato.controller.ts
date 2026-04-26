@@ -41,6 +41,12 @@ export class CampeonatoController {
         return new ResponseCampeonatoDto(campeonato);
     }
 
+    // ── Configuração do formulário (público para form de inscrição) ──
+    @Get(':id/configuracao')
+    async getConfiguracao(@Param('id') id: string) {
+        return this.campeonatoService.getConfiguracao(id);
+    }
+
     // ── Rotas protegidas (admin only) ───────────────
     @ApiBearerAuth('JWT-auth')
     @UseGuards(AuthGuard, RolesGuard)

@@ -5,10 +5,11 @@ import {
     Patch,
     Body,
     Param,
+    Query,
     UseGuards,
     Request,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { InscricaoService } from './inscricao.service';
 import { CreateInscricaoDto } from './dto/create-inscricao.dto';
 import { ResponseInscricaoDto } from './dto/response-inscricao.dto';
@@ -21,41 +22,98 @@ import { Roles } from '../auth/decorators/roles.decorator';
 export class InscricaoController {
     constructor(private readonly inscricaoService: InscricaoService) { }
 
-    // Atleta se inscreve
+    // ── Atleta ────────────────────────────────
+
     @ApiBearerAuth('JWT-auth')
     @UseGuards(AuthGuard)
     @Post()
-    async create(@Body() dto: CreateInscricaoDto, @Request() req) {
+    async create(@Body() dto: CreateInscricaoDto, @Request() req: any) {
         const inscricao = await this.inscricaoService.create(dto, req.usuario.sub);
         return new ResponseInscricaoDto(inscricao);
     }
 
-    // Admin lista inscrições de um campeonato
-    @ApiBearerAuth('JWT-auth')
-    @UseGuards(AuthGuard, RolesGuard)
-    @Roles('admin', 'organizer')
-    @Get('campeonato/:campeonatoId')
-    async findByCampeonato(@Param('campeonatoId') campeonatoId: string) {
-        const inscricoes = await this.inscricaoService.findByCampeonato(campeonatoId);
-        return inscricoes.map((i) => new ResponseInscricaoDto(i));
-    }
-
-    // Atleta vê suas inscrições
     @ApiBearerAuth('JWT-auth')
     @UseGuards(AuthGuard)
     @Get('minhas')
-    async findMine(@Request() req) {
+    async findMine(@Request() req: any) {
         const inscricoes = await this.inscricaoService.findByUsuario(req.usuario.sub);
         return inscricoes.map((i) => new ResponseInscricaoDto(i));
     }
 
-    // Admin confirma pagamento
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard)
+    @Patch(':id/comprovante')
+    async enviarComprovante(
+        @Param('id') id: string,
+        @Body('comprovanteUrl') comprovanteUrl: string,
+        @Request() req: any,
+    ) {
+        const inscricao = await this.inscricaoService.enviarComprovante(
+            id,
+            req.usuario.sub,
+            comprovanteUrl,
+        );
+        return new ResponseInscricaoDto(inscricao);
+    }
+
+    // ── Admin ─────────────────────────────────
+
     @ApiBearerAuth('JWT-auth')
     @UseGuards(AuthGuard, RolesGuard)
     @Roles('admin', 'organizer')
-    @Patch(':id/pagamento')
-    async confirmarPagamento(@Param('id') id: string) {
-        const inscricao = await this.inscricaoService.confirmarPagamento(id);
+    @Get('campeonato/:campeonatoId')
+    @ApiQuery({ name: 'status', required: false })
+    @ApiQuery({ name: 'categoria', required: false })
+    async findByCampeonato(
+        @Param('campeonatoId') campeonatoId: string,
+        @Query('status') status?: string,
+        @Query('categoria') categoria?: string,
+    ) {
+        const inscricoes = await this.inscricaoService.findByCampeonato(campeonatoId, {
+            status,
+            categoria,
+        });
+        return inscricoes.map((i) => new ResponseInscricaoDto(i));
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard, RolesGuard)
+    @Roles('admin', 'organizer')
+    @Get(':id')
+    async findById(@Param('id') id: string) {
+        const inscricao = await this.inscricaoService.findById(id);
         return new ResponseInscricaoDto(inscricao);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard, RolesGuard)
+    @Roles('admin', 'organizer')
+    @Patch(':id/aprovar')
+    async aprovar(
+        @Param('id') id: string,
+        @Body('observacoesAdmin') observacoesAdmin?: string,
+    ) {
+        const inscricao = await this.inscricaoService.aprovar(id, observacoesAdmin);
+        return new ResponseInscricaoDto(inscricao);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard, RolesGuard)
+    @Roles('admin', 'organizer')
+    @Patch(':id/rejeitar')
+    async rejeitar(
+        @Param('id') id: string,
+        @Body('observacoesAdmin') observacoesAdmin?: string,
+    ) {
+        const inscricao = await this.inscricaoService.rejeitar(id, observacoesAdmin);
+        return new ResponseInscricaoDto(inscricao);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard, RolesGuard)
+    @Roles('admin', 'organizer')
+    @Get('campeonato/:campeonatoId/stats')
+    async stats(@Param('campeonatoId') campeonatoId: string) {
+        return this.inscricaoService.statsByCampeonato(campeonatoId);
     }
 }

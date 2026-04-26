@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsuarioModule } from './usuario/usuario.module';
 import { CampeonatoModule } from './campeonato/campeonato.module';
 import { InscricaoModule } from './inscricao/inscricao.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -26,6 +27,8 @@ import { InscricaoModule } from './inscricao/inscricao.module';
     UsuarioModule,
     CampeonatoModule,
     InscricaoModule,
+    UploadModule,
   ],
 })
 export class AppModule { }
+

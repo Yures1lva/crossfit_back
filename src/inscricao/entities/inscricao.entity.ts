@@ -5,6 +5,8 @@ import { Campeonato } from '../../campeonato/entities/campeonato.entity';
 
 export enum StatusInscricao {
     PENDING = 'pending',
+    AWAITING_PAYMENT = 'awaiting_payment',
+    PAYMENT_UPLOADED = 'payment_uploaded',
     APPROVED = 'approved',
     REJECTED = 'rejected',
     CANCELLED = 'cancelled',
@@ -34,13 +36,31 @@ export class Inscricao {
     @Enum(() => StatusPagamento)
     paymentStatus: StatusPagamento = StatusPagamento.PENDING;
 
-    // Dados dinâmicos do formulário de inscrição
+    // ── Dados do formulário dinâmico ─────────
     @Property({ nullable: true, type: 'json' })
     dadosFormulario?: Record<string, any>;
 
+    @Property({ nullable: true })
+    categoria?: string;
+
+    @Property({ nullable: true })
+    tamanhoCamisa?: string;
+
+    // ── Uploads ──────────────────────────────
+    @Property({ nullable: true })
+    comprovanteUrl?: string;
+
+    @Property({ nullable: true })
+    fotoAtletaUrl?: string;
+
+    // ── Admin ────────────────────────────────
     @Property({ nullable: true, type: 'text' })
     observacao?: string;
 
+    @Property({ nullable: true, type: 'text' })
+    observacoesAdmin?: string;
+
+    // ── Timestamps ───────────────────────────
     @Property({ onCreate: () => new Date() })
     createdAt: Date = new Date();
 

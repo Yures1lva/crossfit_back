@@ -3,15 +3,43 @@ export class ResponseInscricaoDto {
     status: string;
     paymentStatus: string;
     dadosFormulario?: Record<string, any>;
+    categoria?: string;
+    tamanhoCamisa?: string;
+    comprovanteUrl?: string;
+    fotoAtletaUrl?: string;
     observacao?: string;
+    observacoesAdmin?: string;
     createdAt: Date;
+    usuario?: { id: string; nome: string; email: string };
+    campeonato?: { id: string; nome: string; slug: string };
 
     constructor(entity: any) {
         this.id = entity.id;
         this.status = entity.status;
         this.paymentStatus = entity.paymentStatus;
         this.dadosFormulario = entity.dadosFormulario;
+        this.categoria = entity.categoria;
+        this.tamanhoCamisa = entity.tamanhoCamisa;
+        this.comprovanteUrl = entity.comprovanteUrl;
+        this.fotoAtletaUrl = entity.fotoAtletaUrl;
         this.observacao = entity.observacao;
+        this.observacoesAdmin = entity.observacoesAdmin;
         this.createdAt = entity.createdAt;
+
+        if (entity.usuario?.id) {
+            this.usuario = {
+                id: entity.usuario.id,
+                nome: entity.usuario.nome,
+                email: entity.usuario.email,
+            };
+        }
+
+        if (entity.campeonato?.id) {
+            this.campeonato = {
+                id: entity.campeonato.id,
+                nome: entity.campeonato.nome,
+                slug: entity.campeonato.slug,
+            };
+        }
     }
 }

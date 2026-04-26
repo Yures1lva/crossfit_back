@@ -9,6 +9,16 @@ export enum StatusCampeonato {
     CANCELLED = 'cancelled',
 }
 
+/** Definição de um campo dinâmico do formulário de inscrição */
+export interface CampoFormulario {
+    nome: string;        // Ex: "Nome do atleta"
+    tipo: 'text' | 'date' | 'select' | 'upload_image' | 'upload_document' | 'masked';
+    obrigatorio: boolean;
+    mascara?: string;    // Ex: "000.000.000-00" para CPF
+    opcoes?: string[];   // Para selects (puxa de categorias/camisas ou custom)
+    descricao?: string;  // Placeholder/help text
+}
+
 @Entity()
 export class Campeonato {
     @PrimaryKey({ type: 'uuid' })
@@ -39,6 +49,26 @@ export class Campeonato {
         infoLocal?: string;
         infoHorario?: string;
     };
+
+    // ── Configuração do Formulário ── ────────
+    @Property({ nullable: true, type: 'json' })
+    categorias?: string[];
+
+    @Property({ nullable: true, type: 'json' })
+    tamanhosCamisa?: string[];
+
+    @Property({ nullable: true, type: 'json' })
+    camposFormulario?: CampoFormulario[];
+
+    // ── Pagamento ────────────────────────────
+    @Property({ nullable: true })
+    valorInscricao?: number;
+
+    @Property({ nullable: true })
+    chavePix?: string;
+
+    @Property({ nullable: true })
+    whatsappNumero?: string;
 
     // ── Datas ────────────────────────────────
     @Property({ nullable: true, type: 'date' })

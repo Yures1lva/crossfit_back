@@ -2,6 +2,8 @@ process.env.TZ = 'America/Sao_Paulo';
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import * as path from 'path';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -11,8 +13,13 @@ import { AllExceptionsFilter } from './common/filters';
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn', 'log', 'debug'],
+  });
+
+  // ── Arquivos estáticos (uploads)
+  app.useStaticAssets(path.join(process.cwd(), 'public'), {
+    prefix: '/',
   });
 
   // ── Prefixo global das rotas
@@ -65,6 +72,7 @@ async function bootstrap() {
     .addTag('Campeonatos', 'Gestão de campeonatos')
     .addTag('Inscricoes', 'Inscrições')
     .addTag('Usuarios', 'Gestão de usuários')
+    .addTag('Upload', 'Upload de arquivos')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);

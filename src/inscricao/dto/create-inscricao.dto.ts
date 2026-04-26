@@ -15,5 +15,25 @@ export class CreateInscricaoDto {
     @ApiPropertyOptional()
     @IsOptional()
     @IsString()
+    categoria?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    tamanhoCamisa?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    comprovanteUrl?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    fotoAtletaUrl?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
     observacao?: string;
 }

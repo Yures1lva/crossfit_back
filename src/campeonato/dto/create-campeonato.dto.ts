@@ -1,5 +1,6 @@
-import { IsNotEmpty, IsString, IsOptional, IsDateString, IsInt, Min, IsObject } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsDateString, IsInt, Min, IsObject, IsArray, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import type { CampoFormulario } from '../entities/campeonato.entity';
 
 export class CreateCampeonatoDto {
     @ApiProperty()
@@ -39,6 +40,39 @@ export class CreateCampeonatoDto {
         infoHorario?: string;
     };
 
+    // ── Configuração do Formulário ──
+    @ApiPropertyOptional({ type: [String] })
+    @IsOptional()
+    @IsArray()
+    categorias?: string[];
+
+    @ApiPropertyOptional({ type: [String] })
+    @IsOptional()
+    @IsArray()
+    tamanhosCamisa?: string[];
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsArray()
+    camposFormulario?: CampoFormulario[];
+
+    // ── Pagamento ──
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsNumber()
+    valorInscricao?: number;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    chavePix?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    whatsappNumero?: string;
+
+    // ── Datas ──
     @ApiPropertyOptional()
     @IsOptional()
     @IsDateString()
