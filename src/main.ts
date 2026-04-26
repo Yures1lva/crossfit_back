@@ -1,0 +1,86 @@
+process.env.TZ = 'America/Sao_Paulo';
+
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { ValidationPipe, Logger } from '@nestjs/common';
+import cookieParser from 'cookie-parser';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { json, urlencoded } from 'express';
+import { AllExceptionsFilter } from './common/filters';
+
+async function bootstrap() {
+  const logger = new Logger('Bootstrap');
+
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log', 'debug'],
+  });
+
+  // ── Prefixo global das rotas
+  app.setGlobalPrefix('api/v1');
+
+  // ── Body parsing
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
+  app.use(cookieParser());
+
+  // ── CORS
+  app.enableCors({
+    origin: (origin, callback) => callback(null, true),
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'Origin',
+      'X-Requested-With',
+    ],
+    exposedHeaders: ['Content-Length', 'Content-Disposition'],
+  });
+
+  // ── Validação global
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
+  );
+
+  // ── Filtros globais
+  app.useGlobalFilters(new AllExceptionsFilter());
+
+  // ── Swagger
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('CrossFit Arena API')
+    .setDescription('API de gestão de campeonatos de CrossFit')
+    .setVersion('1.0')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'JWT-auth',
+    )
+    .addServer('http://localhost:3004', 'Local Development')
+    .addTag('Auth', 'Autenticação')
+    .addTag('Campeonatos', 'Gestão de campeonatos')
+    .addTag('Inscricoes', 'Inscrições')
+    .addTag('Usuarios', 'Gestão de usuários')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: { persistAuthorization: true },
+  });
+
+  // ── Start
+  const PORT = process.env.PORT ?? 3004;
+  await app.listen(PORT);
+  logger.log(`Rodando em: http://localhost:${PORT}`);
+  logger.log(`Swagger: http://localhost:${PORT}/api/docs`);
+  logger.log(`Ambiente: ${process.env.NODE_ENV}`);
+}
+
+bootstrap().catch((err) => {
+  console.error('Falha ao iniciar:', err);
+  process.exit(1);
+});
