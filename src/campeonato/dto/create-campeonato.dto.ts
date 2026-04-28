@@ -1,6 +1,21 @@
-import { IsNotEmpty, IsString, IsOptional, IsDateString, IsInt, Min, IsObject, IsArray, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsDateString, IsInt, Min, IsObject, IsArray, IsNumber, ValidateNested, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import type { CampoFormulario, ModalidadeConfig } from '../entities/campeonato.entity';
+import { Type } from 'class-transformer';
+import type { CampoFormulario } from '../entities/campeonato.entity';
+import { StatusCampeonato } from '../entities/campeonato.entity';
+
+class ModalidadeConfigDto {
+    @IsString()
+    nome!: string;
+
+    @IsNumber()
+    qtdAtletas!: number;
+
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    categorias?: string[];
+}
 
 export class CreateCampeonatoDto {
     @ApiProperty()
@@ -44,7 +59,9 @@ export class CreateCampeonatoDto {
     @ApiPropertyOptional()
     @IsOptional()
     @IsArray()
-    modalidades?: ModalidadeConfig[];
+    @ValidateNested({ each: true })
+    @Type(() => ModalidadeConfigDto)
+    modalidades?: ModalidadeConfigDto[];
 
     /** @deprecated — usar modalidades */
     @ApiPropertyOptional({ type: [String] })
@@ -77,6 +94,12 @@ export class CreateCampeonatoDto {
     @IsOptional()
     @IsString()
     whatsappNumero?: string;
+
+    // ── Status ──
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsEnum(StatusCampeonato)
+    status?: StatusCampeonato;
 
     // ── Datas ──
     @ApiPropertyOptional()
