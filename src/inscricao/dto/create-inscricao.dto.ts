@@ -25,6 +25,11 @@ export class CreateInscricaoDto {
     @ApiPropertyOptional()
     @IsOptional()
     @IsString()
+    modalidade?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
     comprovanteUrl?: string;
 
     @ApiPropertyOptional()

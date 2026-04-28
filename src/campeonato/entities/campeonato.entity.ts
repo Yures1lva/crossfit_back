@@ -19,6 +19,13 @@ export interface CampoFormulario {
     descricao?: string;  // Placeholder/help text
 }
 
+/** Configuração de uma modalidade (define qtd de atletas e categorias disponíveis) */
+export interface ModalidadeConfig {
+    nome: string;          // Ex: "Individual", "Dupla", "Trio"
+    qtdAtletas: number;    // 1, 2, 3...
+    categorias: string[];  // Ex: ["Iniciante Masculino", "RX Feminino", "Master 35+"]
+}
+
 @Entity()
 export class Campeonato {
     @PrimaryKey({ type: 'uuid' })
@@ -51,6 +58,10 @@ export class Campeonato {
     };
 
     // ── Configuração do Formulário ── ────────
+    @Property({ nullable: true, type: 'json' })
+    modalidades?: ModalidadeConfig[];
+
+    /** @deprecated — usar modalidades */
     @Property({ nullable: true, type: 'json' })
     categorias?: string[];
 

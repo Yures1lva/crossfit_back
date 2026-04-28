@@ -88,14 +88,14 @@
 ## Módulo 2.5 — Correções & Evolução de Regras (Inscrições)
 > Refinamento das regras de negócio e precificação.
 
-- [ ] **Lotes de Venda (`Lote`)**
+- [x] **Lotes de Venda (`Lote`)**
   - Criar entidade `Lote` (nome, campeonato_id, dataFim, quantidadeTotal, valoresBase JSON).
   - Admin gerencia dinamicamente: adicionar novos lotes, mudar quantidades ou prazos.
-- [ ] **Precificação Dinâmica por Categoria**
+- [x] **Precificação Dinâmica por Categoria**
   - Vincular o valor final na hora da inscrição baseado na modalidade (Individual, Dupla, Trio) *versus* o valor do lote ativo (ex: Lote 1 - Individual = R$ 200, Dupla = R$ 400, Trio = R$ 600).
-- [ ] **Validação de Inscrição Única**
+- [x] **Validação de Inscrição Única**
   - Regra de negócio no backend que verifica se o `usuarioId` já possui inscrição `approved` ou `pending` em outra categoria do mesmo `campeonatoId`.
-- [ ] Atualizar API e Banco de Dados (schema update).
+- [x] Atualizar API e Banco de Dados (schema update).
 
 ---
 

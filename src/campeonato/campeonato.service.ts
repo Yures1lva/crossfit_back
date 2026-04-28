@@ -1,21 +1,35 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository, EntityManager } from '@mikro-orm/postgresql';
-import { Campeonato, CampoFormulario } from './entities/campeonato.entity';
+import { Campeonato, CampoFormulario, ModalidadeConfig } from './entities/campeonato.entity';
 import { CreateCampeonatoDto } from './dto/create-campeonato.dto';
 import { UpdateCampeonatoDto } from './dto/update-campeonato.dto';
 
-/** Categorias padrão pré-configuradas */
-const DEFAULT_CATEGORIAS = [
-    'Iniciante Masculino Trio',
-    'Iniciante Feminino Trio',
-    'Scaled Masculino Trio',
-    'Scaled Feminino Trio',
-    'Intermediário Masculino Individual',
-    'Intermediário Feminino Individual',
-    'Master 35+ Masculino Individual',
-    'Master 40+ Masculino Individual',
-    'RX Masculino Individual',
+/** Modalidades padrão pré-configuradas */
+const DEFAULT_MODALIDADES: ModalidadeConfig[] = [
+    {
+        nome: 'Individual',
+        qtdAtletas: 1,
+        categorias: [
+            'Iniciante Masculino', 'Iniciante Feminino',
+            'Intermediário Masculino', 'Intermediário Feminino',
+            'Master 35+ Masculino', 'Master 40+ Masculino',
+            'RX Masculino',
+        ],
+    },
+    {
+        nome: 'Dupla',
+        qtdAtletas: 2,
+        categorias: ['Iniciante Mista', 'Scaled Mista'],
+    },
+    {
+        nome: 'Trio',
+        qtdAtletas: 3,
+        categorias: [
+            'Iniciante Masculino', 'Iniciante Feminino',
+            'Scaled Masculino', 'Scaled Feminino',
+        ],
+    },
 ];
 
 /** Tamanhos de camisa padrão */
@@ -74,7 +88,7 @@ export class CampeonatoService {
         Object.assign(campeonato, dto);
 
         // Aplica defaults se não fornecido
-        if (!campeonato.categorias) campeonato.categorias = DEFAULT_CATEGORIAS;
+        if (!campeonato.modalidades) campeonato.modalidades = DEFAULT_MODALIDADES;
         if (!campeonato.tamanhosCamisa) campeonato.tamanhosCamisa = DEFAULT_CAMISAS;
         if (!campeonato.camposFormulario) campeonato.camposFormulario = DEFAULT_CAMPOS;
 
@@ -96,11 +110,11 @@ export class CampeonatoService {
         await this.em.flush();
     }
 
-    /** Retorna a configuração do formulário (categorias, camisas, campos) */
+    /** Retorna a configuração do formulário */
     async getConfiguracao(id: string) {
         const camp = await this.findOne(id);
         return {
-            categorias: camp.categorias || DEFAULT_CATEGORIAS,
+            modalidades: camp.modalidades || DEFAULT_MODALIDADES,
             tamanhosCamisa: camp.tamanhosCamisa || DEFAULT_CAMISAS,
             camposFormulario: camp.camposFormulario || DEFAULT_CAMPOS,
             valorInscricao: camp.valorInscricao,
@@ -109,3 +123,4 @@ export class CampeonatoService {
         };
     }
 }
+

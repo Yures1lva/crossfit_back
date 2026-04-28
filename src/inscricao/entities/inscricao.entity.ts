@@ -46,6 +46,8 @@ export class Inscricao {
     @Property({ nullable: true })
     tamanhoCamisa?: string;
 
+    @Property({ nullable: true })
+    modalidade?: string;
     // ── Uploads ──────────────────────────────
     @Property({ nullable: true })
     comprovanteUrl?: string;
@@ -59,6 +61,13 @@ export class Inscricao {
 
     @Property({ nullable: true, type: 'text' })
     observacoesAdmin?: string;
+
+    // ── Precificação (congelada no momento da inscrição) ──
+    @Property({ nullable: true, type: 'double' })
+    valorPago?: number;
+
+    @Property({ nullable: true })
+    loteNome?: string;
 
     // ── Timestamps ───────────────────────────
     @Property({ onCreate: () => new Date() })

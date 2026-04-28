@@ -1,6 +1,6 @@
 import { IsNotEmpty, IsString, IsOptional, IsDateString, IsInt, Min, IsObject, IsArray, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import type { CampoFormulario } from '../entities/campeonato.entity';
+import type { CampoFormulario, ModalidadeConfig } from '../entities/campeonato.entity';
 
 export class CreateCampeonatoDto {
     @ApiProperty()
@@ -41,6 +41,12 @@ export class CreateCampeonatoDto {
     };
 
     // ── Configuração do Formulário ──
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsArray()
+    modalidades?: ModalidadeConfig[];
+
+    /** @deprecated — usar modalidades */
     @ApiPropertyOptional({ type: [String] })
     @IsOptional()
     @IsArray()

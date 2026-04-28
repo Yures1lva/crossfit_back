@@ -5,6 +5,7 @@ import { Inscricao, StatusInscricao, StatusPagamento } from './entities/inscrica
 import { CreateInscricaoDto } from './dto/create-inscricao.dto';
 import { Usuario } from '../usuario/entities/usuario.entity';
 import { Campeonato } from '../campeonato/entities/campeonato.entity';
+import { LoteService } from '../lote/lote.service';
 
 @Injectable()
 export class InscricaoService {
@@ -12,20 +13,52 @@ export class InscricaoService {
         @InjectRepository(Inscricao)
         private readonly inscricaoRepo: EntityRepository<Inscricao>,
         private readonly em: EntityManager,
+        private readonly loteService: LoteService,
     ) { }
 
     // ── Atleta ────────────────────────────────
 
     async create(dto: CreateInscricaoDto, usuarioId: string): Promise<Inscricao> {
+        // ── Validação de inscrição única ──
+        const existente = await this.inscricaoRepo.findOne({
+            usuario: { id: usuarioId },
+            campeonato: { id: dto.campeonatoId },
+            isDeleted: false,
+            status: { $nin: [StatusInscricao.REJECTED, StatusInscricao.CANCELLED] },
+        });
+        if (existente) {
+            throw new BadRequestException(
+                'Você já possui uma inscrição neste campeonato',
+            );
+        }
+
         const inscricao = new Inscricao();
         inscricao.usuario = this.em.getReference(Usuario, usuarioId);
         inscricao.campeonato = this.em.getReference(Campeonato, dto.campeonatoId);
         inscricao.dadosFormulario = dto.dadosFormulario;
         inscricao.categoria = dto.categoria;
+        inscricao.modalidade = dto.modalidade;
         inscricao.tamanhoCamisa = dto.tamanhoCamisa;
         inscricao.comprovanteUrl = dto.comprovanteUrl;
         inscricao.fotoAtletaUrl = dto.fotoAtletaUrl;
         inscricao.observacao = dto.observacao;
+
+        // ── Precificação dinâmica (por modalidade) ──
+        if (dto.modalidade) {
+            const preco = await this.loteService.calcularPreco(
+                dto.campeonatoId,
+                dto.modalidade,
+            );
+            if (preco) {
+                inscricao.valorPago = preco.valor;
+                inscricao.loteNome = preco.loteNome;
+                // Incrementar vaga usada no lote
+                const loteAtivo = await this.loteService.getLoteAtivo(dto.campeonatoId);
+                if (loteAtivo) {
+                    await this.loteService.incrementarVaga(loteAtivo.id);
+                }
+            }
+        }
 
         if (dto.comprovanteUrl) {
             inscricao.paymentStatus = StatusPagamento.PROOF_SENT;

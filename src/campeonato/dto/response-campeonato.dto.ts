@@ -1,4 +1,4 @@
-import type { CampoFormulario } from '../entities/campeonato.entity';
+import type { CampoFormulario, ModalidadeConfig } from '../entities/campeonato.entity';
 
 export class ResponseCampeonatoDto {
     id: string;
@@ -8,6 +8,7 @@ export class ResponseCampeonatoDto {
     bannerUrl?: string;
     regulamento?: string;
     lpConfig?: Record<string, any>;
+    modalidades?: ModalidadeConfig[];
     categorias?: string[];
     tamanhosCamisa?: string[];
     camposFormulario?: CampoFormulario[];
@@ -30,6 +31,7 @@ export class ResponseCampeonatoDto {
         this.bannerUrl = entity.bannerUrl;
         this.regulamento = entity.regulamento;
         this.lpConfig = entity.lpConfig;
+        this.modalidades = entity.modalidades;
         this.categorias = entity.categorias;
         this.tamanhosCamisa = entity.tamanhosCamisa;
         this.camposFormulario = entity.camposFormulario;
