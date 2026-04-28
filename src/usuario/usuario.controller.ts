@@ -1,15 +1,37 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Body, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { UsuarioService } from './usuario.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ResponseUsuarioDto } from './dto/response-usuario.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @ApiTags('Usuarios')
 @Controller('usuarios')
 export class UsuarioController {
     constructor(private readonly usuarioService: UsuarioService) { }
+
+    // ── Perfil do usuário logado ──────────────
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard)
+    @Get('me')
+    async getProfile(@Request() req: any) {
+        const usuario = await this.usuarioService.findOne(req.usuario.sub);
+        if (!usuario) throw new Error('Usuário não encontrado');
+        return new ResponseUsuarioDto(usuario);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard)
+    @Patch('me')
+    async updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto) {
+        const usuario = await this.usuarioService.updateProfile(req.usuario.sub, dto);
+        return new ResponseUsuarioDto(usuario);
+    }
+
+    // ── Admin ────────────────────────────────
 
     @ApiBearerAuth('JWT-auth')
     @UseGuards(AuthGuard, RolesGuard)

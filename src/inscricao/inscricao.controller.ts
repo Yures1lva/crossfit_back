@@ -3,6 +3,7 @@ import {
     Get,
     Post,
     Patch,
+    Delete,
     Body,
     Param,
     Query,
@@ -21,6 +22,14 @@ import { Roles } from '../auth/decorators/roles.decorator';
 @Controller('inscricoes')
 export class InscricaoController {
     constructor(private readonly inscricaoService: InscricaoService) { }
+
+    // ── Público (sem auth) ─────────────────────
+
+    @Post('public')
+    async createPublic(@Body() dto: CreateInscricaoDto) {
+        const inscricao = await this.inscricaoService.createPublic(dto);
+        return new ResponseInscricaoDto(inscricao);
+    }
 
     // ── Atleta ────────────────────────────────
 
@@ -54,6 +63,14 @@ export class InscricaoController {
             comprovanteUrl,
         );
         return new ResponseInscricaoDto(inscricao);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard)
+    @Delete(':id')
+    async cancelar(@Param('id') id: string, @Request() req: any) {
+        await this.inscricaoService.cancelarByAtleta(id, req.usuario.sub);
+        return { success: true };
     }
 
     // ── Admin ─────────────────────────────────

@@ -1,4 +1,4 @@
-import { Entity, PrimaryKey, Property, ManyToOne, Enum } from '@mikro-orm/core';
+import { Entity, PrimaryKey, Property, ManyToOne, Enum, Index } from '@mikro-orm/core';
 import { v4 as uuidv4 } from 'uuid';
 import { Usuario } from '../../usuario/entities/usuario.entity';
 import { Campeonato } from '../../campeonato/entities/campeonato.entity';
@@ -24,11 +24,23 @@ export class Inscricao {
     @PrimaryKey({ type: 'uuid' })
     id: string = uuidv4();
 
-    @ManyToOne(() => Usuario)
-    usuario!: Usuario;
+    @ManyToOne(() => Usuario, { nullable: true })
+    usuario?: Usuario;
 
     @ManyToOne(() => Campeonato)
     campeonato!: Campeonato;
+
+    // ── Identidade do atleta (para inscrição sem conta) ──
+    @Index()
+    @Property()
+    cpf!: string;
+
+    @Index()
+    @Property()
+    email!: string;
+
+    @Property()
+    nomeAtleta!: string;
 
     @Enum(() => StatusInscricao)
     status: StatusInscricao = StatusInscricao.PENDING;

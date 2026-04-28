@@ -1,13 +1,16 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, Inject, forwardRef } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { UsuarioService } from '../usuario/usuario.service';
+import { InscricaoService } from '../inscricao/inscricao.service';
 
 @Injectable()
 export class AuthService {
     constructor(
         private readonly usuarioService: UsuarioService,
+        @Inject(forwardRef(() => InscricaoService))
+        private readonly inscricaoService: InscricaoService,
         private jwtService: JwtService,
         private configService: ConfigService,
     ) { }
@@ -58,11 +61,14 @@ export class AuthService {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        await this.usuarioService.create({
+        const novoUsuario = await this.usuarioService.create({
             nome,
             email,
             password: hashedPassword,
         });
+
+        // ── Vinculação automática de inscrições sem conta ──
+        await this.inscricaoService.linkToUser(novoUsuario.id, '', email);
 
         // Auto-login após registro (signIn vai comparar com o hash)
         return this.signIn(email, password);

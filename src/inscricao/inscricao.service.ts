@@ -16,25 +16,28 @@ export class InscricaoService {
         private readonly loteService: LoteService,
     ) { }
 
-    // ── Atleta ────────────────────────────────
+    // ── Atleta autenticado ─────────────────────
 
     async create(dto: CreateInscricaoDto, usuarioId: string): Promise<Inscricao> {
-        // ── Validação de inscrição única ──
+        // ── Validação de inscrição única por CPF + campeonato ──
         const existente = await this.inscricaoRepo.findOne({
-            usuario: { id: usuarioId },
+            cpf: dto.cpf,
             campeonato: { id: dto.campeonatoId },
             isDeleted: false,
             status: { $nin: [StatusInscricao.REJECTED, StatusInscricao.CANCELLED] },
         });
         if (existente) {
             throw new BadRequestException(
-                'Você já possui uma inscrição neste campeonato',
+                'Já existe uma inscrição com este CPF neste campeonato',
             );
         }
 
         const inscricao = new Inscricao();
         inscricao.usuario = this.em.getReference(Usuario, usuarioId);
         inscricao.campeonato = this.em.getReference(Campeonato, dto.campeonatoId);
+        inscricao.cpf = dto.cpf;
+        inscricao.email = dto.email;
+        inscricao.nomeAtleta = dto.nomeAtleta;
         inscricao.dadosFormulario = dto.dadosFormulario;
         inscricao.categoria = dto.categoria;
         inscricao.modalidade = dto.modalidade;
@@ -52,7 +55,6 @@ export class InscricaoService {
             if (preco) {
                 inscricao.valorPago = preco.valor;
                 inscricao.loteNome = preco.loteNome;
-                // Incrementar vaga usada no lote
                 const loteAtivo = await this.loteService.getLoteAtivo(dto.campeonatoId);
                 if (loteAtivo) {
                     await this.loteService.incrementarVaga(loteAtivo.id);
@@ -68,6 +70,81 @@ export class InscricaoService {
         this.em.persist(inscricao);
         await this.em.flush();
         return inscricao;
+    }
+
+    // ── Público (sem conta) ───────────────────
+
+    async createPublic(dto: CreateInscricaoDto): Promise<Inscricao> {
+        // ── Validação de inscrição única por CPF + campeonato ──
+        const existente = await this.inscricaoRepo.findOne({
+            cpf: dto.cpf,
+            campeonato: { id: dto.campeonatoId },
+            isDeleted: false,
+            status: { $nin: [StatusInscricao.REJECTED, StatusInscricao.CANCELLED] },
+        });
+        if (existente) {
+            throw new BadRequestException(
+                'Já existe uma inscrição com este CPF neste campeonato',
+            );
+        }
+
+        const inscricao = new Inscricao();
+        // usuario = null (sem conta)
+        inscricao.campeonato = this.em.getReference(Campeonato, dto.campeonatoId);
+        inscricao.cpf = dto.cpf;
+        inscricao.email = dto.email;
+        inscricao.nomeAtleta = dto.nomeAtleta;
+        inscricao.dadosFormulario = dto.dadosFormulario;
+        inscricao.categoria = dto.categoria;
+        inscricao.modalidade = dto.modalidade;
+        inscricao.tamanhoCamisa = dto.tamanhoCamisa;
+        inscricao.comprovanteUrl = dto.comprovanteUrl;
+        inscricao.fotoAtletaUrl = dto.fotoAtletaUrl;
+        inscricao.observacao = dto.observacao;
+
+        // ── Precificação dinâmica (por modalidade) ──
+        if (dto.modalidade) {
+            const preco = await this.loteService.calcularPreco(
+                dto.campeonatoId,
+                dto.modalidade,
+            );
+            if (preco) {
+                inscricao.valorPago = preco.valor;
+                inscricao.loteNome = preco.loteNome;
+                const loteAtivo = await this.loteService.getLoteAtivo(dto.campeonatoId);
+                if (loteAtivo) {
+                    await this.loteService.incrementarVaga(loteAtivo.id);
+                }
+            }
+        }
+
+        if (dto.comprovanteUrl) {
+            inscricao.paymentStatus = StatusPagamento.PROOF_SENT;
+            inscricao.status = StatusInscricao.PAYMENT_UPLOADED;
+        }
+
+        this.em.persist(inscricao);
+        await this.em.flush();
+        return inscricao;
+    }
+
+    // ── Vinculação automática (para quando atleta criar conta) ──
+
+    async linkToUser(usuarioId: string, cpf: string, email: string): Promise<number> {
+        const inscricoes = await this.inscricaoRepo.findAll({
+            where: {
+                $or: [{ cpf }, { email }],
+                usuario: null,
+                isDeleted: false,
+            },
+        });
+
+        for (const inscricao of inscricoes) {
+            inscricao.usuario = this.em.getReference(Usuario, usuarioId);
+        }
+
+        await this.em.flush();
+        return inscricoes.length;
     }
 
     async findByUsuario(usuarioId: string): Promise<Inscricao[]> {
@@ -91,6 +168,22 @@ export class InscricaoService {
         inscricao.status = StatusInscricao.PAYMENT_UPLOADED;
         await this.em.flush();
         return inscricao;
+    }
+
+    async cancelarByAtleta(id: string, usuarioId: string): Promise<void> {
+        const inscricao = await this.inscricaoRepo.findOne({
+            id,
+            usuario: { id: usuarioId },
+            isDeleted: false,
+        });
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+        if (inscricao.status === StatusInscricao.APPROVED) {
+            throw new BadRequestException('Não é possível cancelar uma inscrição já aprovada');
+        }
+
+        inscricao.status = StatusInscricao.CANCELLED;
+        inscricao.isDeleted = true;
+        await this.em.flush();
     }
 
     // ── Admin ─────────────────────────────────

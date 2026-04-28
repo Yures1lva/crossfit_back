@@ -2,6 +2,9 @@ export class ResponseInscricaoDto {
     id: string;
     status: string;
     paymentStatus: string;
+    cpf: string;
+    email: string;
+    nomeAtleta: string;
     dadosFormulario?: Record<string, any>;
     categoria?: string;
     modalidade?: string;
@@ -20,6 +23,9 @@ export class ResponseInscricaoDto {
         this.id = entity.id;
         this.status = entity.status;
         this.paymentStatus = entity.paymentStatus;
+        this.cpf = entity.cpf;
+        this.email = entity.email;
+        this.nomeAtleta = entity.nomeAtleta;
         this.dadosFormulario = entity.dadosFormulario;
         this.categoria = entity.categoria;
         this.modalidade = entity.modalidade;

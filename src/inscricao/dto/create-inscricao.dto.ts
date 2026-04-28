@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional, IsObject } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsObject, IsEmail } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateInscricaoDto {
@@ -6,6 +6,21 @@ export class CreateInscricaoDto {
     @IsNotEmpty()
     @IsString()
     campeonatoId!: string;
+
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsString()
+    cpf!: string;
+
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsEmail()
+    email!: string;
+
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsString()
+    nomeAtleta!: string;
 
     @ApiPropertyOptional()
     @IsOptional()

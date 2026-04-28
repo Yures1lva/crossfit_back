@@ -99,6 +99,22 @@
 
 ---
 
+## Módulo 2.6 — Inscrição Sem Conta
+> Permitir inscrição sem autenticação. Identidade por CPF + email. Vinculação automática futura.
+
+- [x] **Entity `Inscricao`** — `usuario` nullable, novos campos `cpf` (indexado), `email` (indexado), `nomeAtleta`
+- [x] **DTO `CreateInscricaoDto`** — Campos `cpf`, `email`, `nomeAtleta` obrigatórios
+- [x] **DTO `ResponseInscricaoDto`** — Inclui `cpf`, `email`, `nomeAtleta` na resposta
+- [x] **`POST /inscricoes/public`** — Endpoint sem AuthGuard para inscrição pública
+- [x] **`POST /upload/public/image/:subfolder`** — Upload público restrito a `atletas` e `comprovantes`
+- [x] **`POST /upload/public/document/:subfolder`** — Upload público de documentos
+- [x] **`createPublic(dto)`** — Método no service sem vincular usuario
+- [x] **Validação duplicidade** — CPF + campeonatoId (ao invés de usuarioId)
+- [x] **`linkToUser(userId, cpf, email)`** — Método para vinculação futura
+- [x] **Schema update** — Executado com sucesso
+
+---
+
 ## Módulo 3 — Configuração da Landing Page (futuro)
 - [ ] Endpoint para upload de banner do campeonato
 - [ ] Campos de customização visual (cores primária/secundária, texto hero)
@@ -109,3 +125,14 @@
 - [ ] Notificações por e-mail (confirmação inscrição, aprovação)
 - [ ] WebSocket para resultados ao vivo
 - [ ] Dashboard analítico (gráficos de inscrições por dia)
+
+## Próximos Passos (UX Inscrição & Infraestrutura)
+- [ ] Mostrar o preço na etapa 2 (seleção de modalidade) do formulário de inscrição
+- [ ] Mostrar o preço/resumo na etapa 3 (hora de pagar) no formulário de inscrição
+- [ ] Verificar se usuário já possui conta (via email ou CPF) durante a inscrição pública e pedir senha caso já exista
+- [ ] Tornar o campo CPF obrigatório na criação de contas (`/auth/cadastro`)
+- [ ] Implementar validador local de CPF no frontend
+- [ ] Corrigir lógica de visualização: inscrições recém submetidas não estão aparecendo no painel do usuário ("Minhas Inscrições")
+- [ ] Planejar arquitetura de storage (preparar para migração/uso do Supabase para banco e storage no futuro)
+
+
