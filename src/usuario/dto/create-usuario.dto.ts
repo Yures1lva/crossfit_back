@@ -12,6 +12,11 @@ export class CreateUsuarioDto {
     @IsEmail()
     email!: string;
 
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    cpf?: string;
+
     @ApiProperty()
     @IsNotEmpty()
     @IsString()

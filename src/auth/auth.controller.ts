@@ -68,7 +68,7 @@ export class AuthController {
         @Body() dto: RegisterDto,
         @Res({ passthrough: true }) res: Response,
     ) {
-        const result = await this.authService.register(dto.nome, dto.email, dto.password);
+        const result = await this.authService.register(dto.nome, dto.email, dto.password, dto.cpf);
 
         res.cookie('access_token', result.access_token, {
             httpOnly: true,

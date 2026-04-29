@@ -12,6 +12,9 @@ export class Usuario {
   @Property({ unique: true })
   email!: string;
 
+  @Property({ nullable: true, index: true })
+  cpf?: string;
+
   @Property()
   password!: string;
 

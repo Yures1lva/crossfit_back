@@ -33,6 +33,7 @@ export class UsuarioService {
         usuario.nome = dto.nome;
         usuario.email = dto.email;
         usuario.password = dto.password;
+        if (dto.cpf) usuario.cpf = dto.cpf;
         this.em.persist(usuario);
         await this.em.flush();
         return usuario;

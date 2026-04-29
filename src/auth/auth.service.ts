@@ -57,7 +57,7 @@ export class AuthService {
         };
     }
 
-    async register(nome: string, email: string, password: string) {
+    async register(nome: string, email: string, password: string, cpf: string) {
         const existing = await this.usuarioService.findByEmail(email);
         if (existing) {
             throw new ConflictException('E-mail já cadastrado');
@@ -67,11 +67,12 @@ export class AuthService {
         const novoUsuario = await this.usuarioService.create({
             nome,
             email,
+            cpf,
             password: hashedPassword,
         });
 
         // ── Vinculação automática de inscrições sem conta ──
-        await this.inscricaoService.linkToUser(novoUsuario.id, '', email);
+        await this.inscricaoService.linkToUser(novoUsuario.id, cpf, email);
 
         // Auto-login após registro (signIn vai comparar com o hash)
         return this.signIn(email, password);

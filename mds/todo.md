@@ -139,7 +139,7 @@
 - [x] Máscara de dinheiro (`maskCurrency` / `parseCurrencyToNumber`) nos inputs de valor
 - [x] Botão de copiar chave PIX na etapa 3 da inscrição
 - [x] Modal de cancelamento de inscrição usando `useModal` (substituiu `confirm()` nativo)
-- [ ] Tornar o campo CPF obrigatório na criação de contas (`/auth/cadastro`)
-- [ ] Implementar validador local de CPF no frontend
+- [x] Tornar o campo CPF obrigatório na criação de contas (`/auth/cadastro`)
+- [x] Implementar validador local de CPF no frontend
 - [ ] Planejar arquitetura de storage (preparar para migração/uso do Supabase para banco e storage no futuro)
 
