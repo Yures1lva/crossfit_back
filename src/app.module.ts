@@ -12,6 +12,7 @@ import { CampeonatoModule } from './campeonato/campeonato.module';
 import { InscricaoModule } from './inscricao/inscricao.module';
 import { UploadModule } from './upload/upload.module';
 import { LoteModule } from './lote/lote.module';
+import { CidadeModule } from './cidade/cidade.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { LoteModule } from './lote/lote.module';
     InscricaoModule,
     UploadModule,
     LoteModule,
+    CidadeModule,
   ],
 })
 export class AppModule { }

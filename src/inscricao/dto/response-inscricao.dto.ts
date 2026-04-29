@@ -17,7 +17,7 @@ export class ResponseInscricaoDto {
     loteNome?: string;
     createdAt: Date;
     usuario?: { id: string; nome: string; email: string };
-    campeonato?: { id: string; nome: string; slug: string };
+    campeonato?: { id: string; nome: string; slug: string; whatsappNumero?: string };
 
     constructor(entity: any) {
         this.id = entity.id;
@@ -51,6 +51,7 @@ export class ResponseInscricaoDto {
                 id: entity.campeonato.id,
                 nome: entity.campeonato.nome,
                 slug: entity.campeonato.slug,
+                whatsappNumero: entity.campeonato.whatsappNumero,
             };
         }
     }
