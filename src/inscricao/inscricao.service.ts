@@ -167,9 +167,34 @@ export class InscricaoService {
         });
         if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
 
+        if (inscricao.status === StatusInscricao.APPROVED) {
+            throw new BadRequestException('Inscrição já aprovada. Não é possível alterar o comprovante.');
+        }
+
+        // ── Limite de 2 atualizações por dia ──
+        const now = new Date();
+        const today = now.toISOString().slice(0, 10); // "YYYY-MM-DD"
+        const lastUpdateDay = inscricao.comprovanteUpdatedAt
+            ? inscricao.comprovanteUpdatedAt.toISOString().slice(0, 10)
+            : null;
+
+        // Reseta o contador se o dia mudou
+        if (lastUpdateDay !== today) {
+            inscricao.comprovanteUpdateCount = 0;
+        }
+
+        if (inscricao.comprovanteUpdateCount >= 2) {
+            throw new BadRequestException(
+                'Você já atualizou o comprovante 2 vezes hoje. Tente novamente amanhã.',
+            );
+        }
+
         inscricao.comprovanteUrl = comprovanteUrl;
         inscricao.paymentStatus = StatusPagamento.PROOF_SENT;
         inscricao.status = StatusInscricao.PAYMENT_UPLOADED;
+        inscricao.comprovanteUpdatedAt = now;
+        inscricao.comprovanteUpdateCount += 1;
+
         await this.em.flush();
         return inscricao;
     }

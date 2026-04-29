@@ -10,6 +10,8 @@ export class ResponseInscricaoDto {
     modalidade?: string;
     tamanhoCamisa?: string;
     comprovanteUrl?: string;
+    comprovanteUpdateCount?: number;
+    comprovanteUpdatedAt?: Date;
     fotoAtletaUrl?: string;
     observacao?: string;
     observacoesAdmin?: string;
@@ -31,6 +33,8 @@ export class ResponseInscricaoDto {
         this.modalidade = entity.modalidade;
         this.tamanhoCamisa = entity.tamanhoCamisa;
         this.comprovanteUrl = entity.comprovanteUrl;
+        this.comprovanteUpdateCount = entity.comprovanteUpdateCount ?? 0;
+        this.comprovanteUpdatedAt = entity.comprovanteUpdatedAt;
         this.fotoAtletaUrl = entity.fotoAtletaUrl;
         this.observacao = entity.observacao;
         this.observacoesAdmin = entity.observacoesAdmin;

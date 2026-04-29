@@ -65,6 +65,13 @@ export class Inscricao {
     comprovanteUrl?: string;
 
     @Property({ nullable: true })
+    comprovanteUpdatedAt?: Date;
+
+    /** Quantas vezes o comprovante foi atualizado hoje */
+    @Property({ default: 0 })
+    comprovanteUpdateCount: number = 0;
+
+    @Property({ nullable: true })
     fotoAtletaUrl?: string;
 
     // ── Admin ────────────────────────────────
