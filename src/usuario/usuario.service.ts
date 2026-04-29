@@ -45,22 +45,24 @@ export class UsuarioService {
         await this.em.flush();
     }
 
-    async updateProfile(id: string, data: { nome?: string; email?: string; currentPassword?: string; password?: string }): Promise<Usuario> {
+    async updateProfile(id: string, data: { nome?: string; email?: string; currentPassword: string; password?: string }): Promise<Usuario> {
         const usuario = await this.findOne(id);
         if (!usuario) throw new NotFoundException('Usuário não encontrado');
+
+        // Sempre verificar senha atual antes de qualquer alteração
+        if (!data.currentPassword) {
+            throw new BadRequestException('Senha atual é obrigatória');
+        }
+        const bcrypt = await import('bcrypt');
+        const matches = await bcrypt.compare(data.currentPassword, usuario.password);
+        if (!matches) {
+            throw new BadRequestException('Senha atual incorreta');
+        }
 
         if (data.nome) usuario.nome = data.nome;
         if (data.email) usuario.email = data.email;
 
         if (data.password) {
-            if (!data.currentPassword) {
-                throw new BadRequestException('Senha atual é obrigatória para alterar a senha');
-            }
-            const bcrypt = await import('bcrypt');
-            const matches = await bcrypt.compare(data.currentPassword, usuario.password);
-            if (!matches) {
-                throw new BadRequestException('Senha atual incorreta');
-            }
             usuario.password = await bcrypt.hash(data.password, 10);
         }
 
