@@ -71,6 +71,35 @@ export class UsuarioService {
         return usuario;
     }
 
+    async adminUpdateUser(
+        targetUserId: string,
+        adminUserId: string,
+        data: { nome?: string; email?: string; cpf?: string; role?: string; isDisabled?: boolean; adminPassword: string },
+    ): Promise<Usuario> {
+        // Verifica a senha do admin
+        const admin = await this.findOne(adminUserId);
+        if (!admin) throw new NotFoundException('Admin não encontrado');
+
+        const bcrypt = await import('bcrypt');
+        const matches = await bcrypt.compare(data.adminPassword, admin.password);
+        if (!matches) {
+            throw new BadRequestException('Senha do administrador incorreta');
+        }
+
+        // Atualiza o usuário alvo
+        const usuario = await this.findOne(targetUserId);
+        if (!usuario) throw new NotFoundException('Usuário não encontrado');
+
+        if (data.nome !== undefined) usuario.nome = data.nome;
+        if (data.email !== undefined) usuario.email = data.email;
+        if (data.cpf !== undefined) usuario.cpf = data.cpf || undefined;
+        if (data.role !== undefined) usuario.role = data.role as any;
+        if (data.isDisabled !== undefined) usuario.isDisabled = data.isDisabled;
+
+        await this.em.flush();
+        return usuario;
+    }
+
     async remove(id: string): Promise<void> {
         const usuario = await this.findOne(id);
         if (!usuario) throw new NotFoundException('Usuário não encontrado');

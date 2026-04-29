@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Patch, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { UsuarioService } from './usuario.service';
 import { AuthGuard } from '../auth/guards/auth.guard';
@@ -6,6 +6,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ResponseUsuarioDto } from './dto/response-usuario.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { AdminUpdateUsuarioDto } from './dto/admin-update-usuario.dto';
 
 @ApiTags('Usuarios')
 @Controller('usuarios')
@@ -41,4 +42,18 @@ export class UsuarioController {
         const usuarios = await this.usuarioService.findAll();
         return usuarios.map((u) => new ResponseUsuarioDto(u));
     }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard, RolesGuard)
+    @Roles('admin')
+    @Patch(':id/admin')
+    async adminUpdate(
+        @Param('id') id: string,
+        @Request() req: any,
+        @Body() dto: AdminUpdateUsuarioDto,
+    ) {
+        const usuario = await this.usuarioService.adminUpdateUser(id, req.usuario.sub, dto);
+        return new ResponseUsuarioDto(usuario);
+    }
 }
+
