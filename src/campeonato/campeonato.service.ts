@@ -117,6 +117,8 @@ export class CampeonatoService {
             modalidades: camp.modalidades || DEFAULT_MODALIDADES,
             tamanhosCamisa: camp.tamanhosCamisa || DEFAULT_CAMISAS,
             camposFormulario: camp.camposFormulario || DEFAULT_CAMPOS,
+            precosModalidade: camp.precosModalidade,
+            loteNome: camp.loteNome,
             valorInscricao: camp.valorInscricao,
             chavePix: camp.chavePix,
             whatsappNumero: camp.whatsappNumero,

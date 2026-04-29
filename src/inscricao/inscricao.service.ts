@@ -5,30 +5,47 @@ import { Inscricao, StatusInscricao, StatusPagamento } from './entities/inscrica
 import { CreateInscricaoDto } from './dto/create-inscricao.dto';
 import { Usuario } from '../usuario/entities/usuario.entity';
 import { Campeonato } from '../campeonato/entities/campeonato.entity';
-import { LoteService } from '../lote/lote.service';
 
 @Injectable()
 export class InscricaoService {
     constructor(
         @InjectRepository(Inscricao)
         private readonly inscricaoRepo: EntityRepository<Inscricao>,
+        @InjectRepository(Campeonato)
+        private readonly campeonatoRepo: EntityRepository<Campeonato>,
         private readonly em: EntityManager,
-        private readonly loteService: LoteService,
     ) { }
+
+    /** Lê o preço da modalidade diretamente do Campeonato */
+    private async resolverPreco(campeonatoId: string, modalidade?: string): Promise<{ valor: number; loteNome?: string } | null> {
+        if (!modalidade) return null;
+
+        const camp = await this.campeonatoRepo.findOne({ id: campeonatoId, isDeleted: false });
+        if (!camp || !camp.precosModalidade) return null;
+
+        const valor = camp.precosModalidade[modalidade];
+        if (valor === undefined) return null;
+
+        return { valor, loteNome: camp.loteNome };
+    }
 
     // ── Atleta autenticado ─────────────────────
 
     async create(dto: CreateInscricaoDto, usuarioId: string): Promise<Inscricao> {
-        // ── Validação de inscrição única por CPF + campeonato ──
+        // ── Validação de inscrição única por CPF, e-mail ou usuário + campeonato ──
         const existente = await this.inscricaoRepo.findOne({
-            cpf: dto.cpf,
+            $or: [
+                { cpf: dto.cpf },
+                { email: dto.email },
+                { usuario: { id: usuarioId } },
+            ],
             campeonato: { id: dto.campeonatoId },
             isDeleted: false,
             status: { $nin: [StatusInscricao.REJECTED, StatusInscricao.CANCELLED] },
         });
         if (existente) {
             throw new BadRequestException(
-                'Já existe uma inscrição com este CPF neste campeonato',
+                'Já existe uma inscrição neste campeonato para este atleta',
             );
         }
 
@@ -46,20 +63,11 @@ export class InscricaoService {
         inscricao.fotoAtletaUrl = dto.fotoAtletaUrl;
         inscricao.observacao = dto.observacao;
 
-        // ── Precificação dinâmica (por modalidade) ──
-        if (dto.modalidade) {
-            const preco = await this.loteService.calcularPreco(
-                dto.campeonatoId,
-                dto.modalidade,
-            );
-            if (preco) {
-                inscricao.valorPago = preco.valor;
-                inscricao.loteNome = preco.loteNome;
-                const loteAtivo = await this.loteService.getLoteAtivo(dto.campeonatoId);
-                if (loteAtivo) {
-                    await this.loteService.incrementarVaga(loteAtivo.id);
-                }
-            }
+        // ── Precificação direta (do Campeonato) ──
+        const preco = await this.resolverPreco(dto.campeonatoId, dto.modalidade);
+        if (preco) {
+            inscricao.valorPago = preco.valor;
+            inscricao.loteNome = preco.loteNome;
         }
 
         if (dto.comprovanteUrl) {
@@ -75,16 +83,16 @@ export class InscricaoService {
     // ── Público (sem conta) ───────────────────
 
     async createPublic(dto: CreateInscricaoDto): Promise<Inscricao> {
-        // ── Validação de inscrição única por CPF + campeonato ──
+        // ── Validação de inscrição única por CPF ou e-mail + campeonato ──
         const existente = await this.inscricaoRepo.findOne({
-            cpf: dto.cpf,
+            $or: [{ cpf: dto.cpf }, { email: dto.email }],
             campeonato: { id: dto.campeonatoId },
             isDeleted: false,
             status: { $nin: [StatusInscricao.REJECTED, StatusInscricao.CANCELLED] },
         });
         if (existente) {
             throw new BadRequestException(
-                'Já existe uma inscrição com este CPF neste campeonato',
+                'Já existe uma inscrição com este CPF ou e-mail neste campeonato',
             );
         }
 
@@ -102,20 +110,11 @@ export class InscricaoService {
         inscricao.fotoAtletaUrl = dto.fotoAtletaUrl;
         inscricao.observacao = dto.observacao;
 
-        // ── Precificação dinâmica (por modalidade) ──
-        if (dto.modalidade) {
-            const preco = await this.loteService.calcularPreco(
-                dto.campeonatoId,
-                dto.modalidade,
-            );
-            if (preco) {
-                inscricao.valorPago = preco.valor;
-                inscricao.loteNome = preco.loteNome;
-                const loteAtivo = await this.loteService.getLoteAtivo(dto.campeonatoId);
-                if (loteAtivo) {
-                    await this.loteService.incrementarVaga(loteAtivo.id);
-                }
-            }
+        // ── Precificação direta (do Campeonato) ──
+        const preco = await this.resolverPreco(dto.campeonatoId, dto.modalidade);
+        if (preco) {
+            inscricao.valorPago = preco.valor;
+            inscricao.loteNome = preco.loteNome;
         }
 
         if (dto.comprovanteUrl) {
@@ -131,9 +130,14 @@ export class InscricaoService {
     // ── Vinculação automática (para quando atleta criar conta) ──
 
     async linkToUser(usuarioId: string, cpf: string, email: string): Promise<number> {
+        const orConditions: any[] = [];
+        if (cpf) orConditions.push({ cpf });
+        if (email) orConditions.push({ email });
+        if (orConditions.length === 0) return 0;
+
         const inscricoes = await this.inscricaoRepo.findAll({
             where: {
-                $or: [{ cpf }, { email }],
+                $or: orConditions,
                 usuario: null,
                 isDeleted: false,
             },

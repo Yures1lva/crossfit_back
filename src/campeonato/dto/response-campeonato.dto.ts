@@ -12,6 +12,8 @@ export class ResponseCampeonatoDto {
     categorias?: string[];
     tamanhosCamisa?: string[];
     camposFormulario?: CampoFormulario[];
+    precosModalidade?: Record<string, number>;
+    loteNome?: string;
     valorInscricao?: number;
     chavePix?: string;
     whatsappNumero?: string;
@@ -35,6 +37,8 @@ export class ResponseCampeonatoDto {
         this.categorias = entity.categorias;
         this.tamanhosCamisa = entity.tamanhosCamisa;
         this.camposFormulario = entity.camposFormulario;
+        this.precosModalidade = entity.precosModalidade;
+        this.loteNome = entity.loteNome;
         this.valorInscricao = entity.valorInscricao;
         this.chavePix = entity.chavePix;
         this.whatsappNumero = entity.whatsappNumero;

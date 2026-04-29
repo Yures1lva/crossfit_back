@@ -109,8 +109,8 @@
 - [x] **`POST /upload/public/image/:subfolder`** — Upload público restrito a `atletas` e `comprovantes`
 - [x] **`POST /upload/public/document/:subfolder`** — Upload público de documentos
 - [x] **`createPublic(dto)`** — Método no service sem vincular usuario
-- [x] **Validação duplicidade** — CPF + campeonatoId (ao invés de usuarioId)
-- [x] **`linkToUser(userId, cpf, email)`** — Método para vinculação futura
+- [x] **Validação duplicidade** — CPF + e-mail + usuarioId (tripla verificação com `$or`)
+- [x] **`linkToUser(userId, cpf, email)`** — Vinculação automática no login E no registro
 - [x] **Schema update** — Executado com sucesso
 
 ---
@@ -127,12 +127,19 @@
 - [ ] Dashboard analítico (gráficos de inscrições por dia)
 
 ## Próximos Passos (UX Inscrição & Infraestrutura)
-- [ ] Mostrar o preço na etapa 2 (seleção de modalidade) do formulário de inscrição
-- [ ] Mostrar o preço/resumo na etapa 3 (hora de pagar) no formulário de inscrição
-- [ ] Verificar se usuário já possui conta (via email ou CPF) durante a inscrição pública e pedir senha caso já exista
+- [x] Mostrar o preço na etapa 2 (seleção de modalidade) do formulário de inscrição
+- [x] Mostrar o preço/resumo na etapa 3 (hora de pagar) no formulário de inscrição
+- [x] Verificar se usuário já possui conta (via email ou CPF) durante a inscrição pública e pedir senha caso já exista
+  - Endpoint `POST /auth/check-account` criado
+  - Fluxo: Confirmar → check-account → login ou register → submeter inscrição autenticada
+- [x] Corrigir lógica de visualização: inscrições recém submetidas não estão aparecendo no painel do usuário ("Minhas Inscrições")
+  - `linkToUser` agora roda no login (signIn) além do registro
+  - Inscrição agora usa endpoint autenticado (`POST /inscricoes`) em vez de `createPublic`
+- [x] Simplificar sistema de preços: campos `precosModalidade` e `loteNome` direto no Campeonato (sem entidade Lote)
+- [x] Máscara de dinheiro (`maskCurrency` / `parseCurrencyToNumber`) nos inputs de valor
+- [x] Botão de copiar chave PIX na etapa 3 da inscrição
+- [x] Modal de cancelamento de inscrição usando `useModal` (substituiu `confirm()` nativo)
 - [ ] Tornar o campo CPF obrigatório na criação de contas (`/auth/cadastro`)
 - [ ] Implementar validador local de CPF no frontend
-- [ ] Corrigir lógica de visualização: inscrições recém submetidas não estão aparecendo no painel do usuário ("Minhas Inscrições")
 - [ ] Planejar arquitetura de storage (preparar para migração/uso do Supabase para banco e storage no futuro)
-
 

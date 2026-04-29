@@ -42,6 +42,9 @@ export class AuthService {
         const hashedRefreshToken = await bcrypt.hash(refresh_token, 10);
         await this.usuarioService.updateRefreshToken(usuario.id, hashedRefreshToken);
 
+        // ── Vinculação automática de inscrições órfãs ──
+        await this.inscricaoService.linkToUser(usuario.id, '', email);
+
         return {
             access_token,
             refresh_token,
@@ -87,5 +90,11 @@ export class AuthService {
 
         const payload = { sub: usuario.id, role: usuario.role };
         return { access_token: this.jwtService.sign(payload as any) };
+    }
+
+    /** Verifica se já existe conta com o e-mail informado */
+    async accountExists(email: string): Promise<boolean> {
+        const usuario = await this.usuarioService.findByEmail(email);
+        return !!usuario;
     }
 }

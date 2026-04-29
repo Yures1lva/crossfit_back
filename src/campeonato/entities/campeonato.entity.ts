@@ -72,6 +72,15 @@ export class Campeonato {
     camposFormulario?: CampoFormulario[];
 
     // ── Pagamento ────────────────────────────
+    /** Preço por modalidade: { "Individual": 200, "Dupla": 400, "Trio": 600 } */
+    @Property({ nullable: true, type: 'json' })
+    precosModalidade?: Record<string, number>;
+
+    /** Nome do lote ativo: "Lote 1", "Lote 2", etc. Editável a qualquer momento. */
+    @Property({ nullable: true })
+    loteNome?: string;
+
+    /** @deprecated — usar precosModalidade */
     @Property({ nullable: true })
     valorInscricao?: number;
 

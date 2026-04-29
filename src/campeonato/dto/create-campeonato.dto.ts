@@ -82,6 +82,17 @@ export class CreateCampeonatoDto {
     // ── Pagamento ──
     @ApiPropertyOptional()
     @IsOptional()
+    @IsObject()
+    precosModalidade?: Record<string, number>;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    loteNome?: string;
+
+    /** @deprecated — usar precosModalidade */
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsNumber()
     valorInscricao?: number;
 

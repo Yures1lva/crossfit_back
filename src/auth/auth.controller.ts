@@ -133,6 +133,14 @@ export class AuthController {
         return { success: true };
     }
 
+    /** Verifica se já existe conta com este e-mail (endpoint público) */
+    @HttpCode(200)
+    @Post('check-account')
+    async checkAccount(@Body() body: { email: string }) {
+        const exists = await this.authService.accountExists(body.email);
+        return { exists };
+    }
+
     @UseGuards(AuthGuard)
     @Get('profile')
     getProfile(@Request() req) {
