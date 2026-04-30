@@ -5,6 +5,7 @@ import { Inscricao, StatusInscricao, StatusPagamento } from './entities/inscrica
 import { CreateInscricaoDto } from './dto/create-inscricao.dto';
 import { Usuario } from '../usuario/entities/usuario.entity';
 import { Campeonato } from '../campeonato/entities/campeonato.entity';
+import { UploadService } from '../upload/upload.service';
 
 @Injectable()
 export class InscricaoService {
@@ -14,6 +15,7 @@ export class InscricaoService {
         @InjectRepository(Campeonato)
         private readonly campeonatoRepo: EntityRepository<Campeonato>,
         private readonly em: EntityManager,
+        private readonly uploadService: UploadService,
     ) { }
 
     /** Lê o preço da modalidade diretamente do Campeonato */
@@ -27,6 +29,21 @@ export class InscricaoService {
         if (valor === undefined) return null;
 
         return { valor, loteNome: camp.loteNome };
+    }
+
+    /** Mapeia a URL do comprovante para uma Signed URL, se necessário */
+    private async mapSignedUrls(inscricoes: Inscricao | Inscricao[]): Promise<void> {
+        const items = Array.isArray(inscricoes) ? inscricoes : [inscricoes];
+        for (const inscricao of items) {
+            if (inscricao.comprovanteUrl && !inscricao.comprovanteUrl.startsWith('http')) {
+                // Se for apenas o nome do arquivo, gera a Signed URL do bucket comprovantes
+                try {
+                    inscricao.comprovanteUrl = await this.uploadService.getSignedUrl('comprovantes', inscricao.comprovanteUrl, 3600);
+                } catch (e) {
+                    // Falha silenciosa ou log
+                }
+            }
+        }
     }
 
     // ── Atleta autenticado ─────────────────────
@@ -152,11 +169,13 @@ export class InscricaoService {
     }
 
     async findByUsuario(usuarioId: string): Promise<Inscricao[]> {
-        return this.inscricaoRepo.findAll({
+        const inscricoes = await this.inscricaoRepo.findAll({
             where: { usuario: { id: usuarioId }, isDeleted: false },
             populate: ['campeonato'],
             orderBy: { createdAt: 'DESC' },
         });
+        await this.mapSignedUrls(inscricoes);
+        return inscricoes;
     }
 
     async enviarComprovante(id: string, usuarioId: string, comprovanteUrl: string): Promise<Inscricao> {
@@ -225,11 +244,13 @@ export class InscricaoService {
         if (filtros?.status) where.status = filtros.status;
         if (filtros?.categoria) where.categoria = filtros.categoria;
 
-        return this.inscricaoRepo.findAll({
+        const inscricoes = await this.inscricaoRepo.findAll({
             where,
             populate: ['usuario', 'campeonato'],
             orderBy: { createdAt: 'DESC' },
         });
+        await this.mapSignedUrls(inscricoes);
+        return inscricoes;
     }
 
     async findById(id: string): Promise<Inscricao> {
@@ -238,6 +259,7 @@ export class InscricaoService {
             { populate: ['usuario', 'campeonato'] },
         );
         if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+        await this.mapSignedUrls(inscricao);
         return inscricao;
     }
 

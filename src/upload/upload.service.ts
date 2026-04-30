@@ -22,7 +22,13 @@ export class UploadService {
         const ext = path.extname(file.originalname);
         const filename = `${uuidv4()}${ext}`;
 
-        return this.storage.upload(subfolder, filename, file.buffer, file.mimetype);
+        const url = await this.storage.upload(subfolder, filename, file.buffer, file.mimetype);
+
+        if (subfolder === 'comprovantes') {
+            return filename;
+        }
+
+        return url;
     }
 
     /** Retorna URL pública para um arquivo */
