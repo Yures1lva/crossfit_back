@@ -31,14 +31,21 @@ async function bootstrap() {
   app.use(cookieParser());
 
   // ── CORS
-  const allowedOrigins = process.env.FRONTEND_URL
-      ? [process.env.FRONTEND_URL, 'http://localhost:3000']
-      : ['http://localhost:3000'];
+  const frontendUrls = process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(',').map(u => u.trim())
+      : [];
+  const allowedOrigins = [...frontendUrls, 'http://localhost:3000'];
 
   app.enableCors({
     origin: (origin, callback) => {
       // Permite requests sem origin (ex: Postman, curl, mobile)
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin) return callback(null, true);
+
+      // Match exato ou qualquer subdomínio de sooacosports.com.br
+      const isAllowed = allowedOrigins.includes(origin)
+          || /^https:\/\/([a-z0-9-]+\.)*sooacosports\.com\.br$/.test(origin);
+
+      if (isAllowed) {
         callback(null, true);
       } else {
         callback(new Error(`Origin ${origin} not allowed by CORS`));
