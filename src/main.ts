@@ -5,6 +5,7 @@ import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import * as path from 'path';
 import { ValidationPipe, Logger } from '@nestjs/common';
+import { MikroORM } from '@mikro-orm/core';
 import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { json, urlencoded } from 'express';
@@ -97,6 +98,12 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: { persistAuthorization: true },
   });
+
+  // ── Auto-sync do schema (adiciona colunas novas sem perder dados)
+  const orm = app.get(MikroORM);
+  const generator = orm.getSchemaGenerator();
+  await generator.updateSchema({ safe: true, dropTables: false });
+  logger.log('Schema do banco sincronizado');
 
   // ── Start
   const PORT = process.env.PORT ?? 3004;

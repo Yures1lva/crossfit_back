@@ -32,6 +32,10 @@ const config: MikroOrmModuleOptions = {
             },
         },
     }),
+    // Sincroniza schema automaticamente (adiciona colunas novas, não remove dados)
+    schemaGenerator: {
+        disableForeignKeys: false,
+    },
 };
 
 export default config;
