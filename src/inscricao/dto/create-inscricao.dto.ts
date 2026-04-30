@@ -1,5 +1,20 @@
-import { IsNotEmpty, IsString, IsOptional, IsObject, IsEmail } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsObject, IsEmail, IsArray, ValidateNested } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+
+class ParceiroDto {
+    @IsNotEmpty()
+    @IsString()
+    nome!: string;
+
+    @IsNotEmpty()
+    @IsString()
+    cpf!: string;
+
+    @IsNotEmpty()
+    @IsString()
+    tamanhoCamisa!: string;
+}
 
 export class CreateInscricaoDto {
     @ApiProperty()
@@ -44,6 +59,13 @@ export class CreateInscricaoDto {
 
     @ApiPropertyOptional()
     @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => ParceiroDto)
+    parceiros?: { nome: string; cpf: string }[];
+
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
     comprovanteUrl?: string;
 
@@ -54,6 +76,17 @@ export class CreateInscricaoDto {
 
     @ApiPropertyOptional()
     @IsOptional()
+    @IsArray()
+    fotosAtletas?: string[];
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    fotoModo?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsString()
     observacao?: string;
 }
+

@@ -9,10 +9,15 @@ export class ResponseInscricaoDto {
     categoria?: string;
     modalidade?: string;
     tamanhoCamisa?: string;
+    parceiros?: { nome: string; cpf: string }[];
     comprovanteUrl?: string;
     comprovanteUpdateCount?: number;
     comprovanteUpdatedAt?: Date;
     fotoAtletaUrl?: string;
+    fotosAtletas?: string[];
+    fotoModo?: string;
+    fotosUpdatedAt?: Date;
+    fotosUpdateCount?: number;
     observacao?: string;
     observacoesAdmin?: string;
     valorPago?: number;
@@ -32,10 +37,15 @@ export class ResponseInscricaoDto {
         this.categoria = entity.categoria;
         this.modalidade = entity.modalidade;
         this.tamanhoCamisa = entity.tamanhoCamisa;
+        this.parceiros = entity.parceiros;
         this.comprovanteUrl = entity.comprovanteUrl;
         this.comprovanteUpdateCount = entity.comprovanteUpdateCount ?? 0;
         this.comprovanteUpdatedAt = entity.comprovanteUpdatedAt;
         this.fotoAtletaUrl = entity.fotoAtletaUrl;
+        this.fotosAtletas = entity.fotosAtletas;
+        this.fotoModo = entity.fotoModo;
+        this.fotosUpdatedAt = entity.fotosUpdatedAt;
+        this.fotosUpdateCount = entity.fotosUpdateCount ?? 0;
         this.observacao = entity.observacao;
         this.observacoesAdmin = entity.observacoesAdmin;
         this.valorPago = entity.valorPago;
@@ -60,3 +70,4 @@ export class ResponseInscricaoDto {
         }
     }
 }
+

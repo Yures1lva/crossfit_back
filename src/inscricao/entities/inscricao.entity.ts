@@ -60,6 +60,11 @@ export class Inscricao {
 
     @Property({ nullable: true })
     modalidade?: string;
+
+    // ── Parceiros (dupla/trio) ────────────────
+    @Property({ nullable: true, type: 'json' })
+    parceiros?: { nome: string; cpf: string; tamanhoCamisa?: string }[];
+
     // ── Uploads ──────────────────────────────
     @Property({ nullable: true })
     comprovanteUrl?: string;
@@ -73,6 +78,20 @@ export class Inscricao {
 
     @Property({ nullable: true })
     fotoAtletaUrl?: string;
+
+    // ── Fotos dos atletas (grupo ou individuais) ──
+    @Property({ nullable: true, type: 'json' })
+    fotosAtletas?: string[];
+
+    /** 'grupo' = 1 foto de todos, 'individual' = 1 foto por atleta */
+    @Property({ nullable: true })
+    fotoModo?: string;
+
+    @Property({ nullable: true })
+    fotosUpdatedAt?: Date;
+
+    @Property({ default: 0 })
+    fotosUpdateCount: number = 0;
 
     // ── Admin ────────────────────────────────
     @Property({ nullable: true, type: 'text' })

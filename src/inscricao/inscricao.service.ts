@@ -31,17 +31,24 @@ export class InscricaoService {
         return { valor, loteNome: camp.loteNome };
     }
 
-    /** Mapeia a URL do comprovante para uma Signed URL, se necessário */
+    /** Mapeia a URL do comprovante e fotos para Signed URLs, se necessário */
     private async mapSignedUrls(inscricoes: Inscricao | Inscricao[]): Promise<void> {
         const items = Array.isArray(inscricoes) ? inscricoes : [inscricoes];
         for (const inscricao of items) {
+            // Comprovante (bucket privado)
             if (inscricao.comprovanteUrl && !inscricao.comprovanteUrl.startsWith('http')) {
-                // Se for apenas o nome do arquivo, gera a Signed URL do bucket comprovantes
                 try {
                     inscricao.comprovanteUrl = await this.uploadService.getSignedUrl('comprovantes', inscricao.comprovanteUrl, 3600);
                 } catch (e) {
-                    // Falha silenciosa ou log
+                    // Falha silenciosa
                 }
+            }
+            // Fotos dos atletas (bucket público — resolve URL pública)
+            if (inscricao.fotosAtletas?.length) {
+                inscricao.fotosAtletas = inscricao.fotosAtletas.map((f) => {
+                    if (f.startsWith('http')) return f;
+                    return this.uploadService.getPublicUrl('atletas', f);
+                });
             }
         }
     }
@@ -76,8 +83,11 @@ export class InscricaoService {
         inscricao.categoria = dto.categoria;
         inscricao.modalidade = dto.modalidade;
         inscricao.tamanhoCamisa = dto.tamanhoCamisa;
+        inscricao.parceiros = dto.parceiros;
         inscricao.comprovanteUrl = dto.comprovanteUrl;
         inscricao.fotoAtletaUrl = dto.fotoAtletaUrl;
+        inscricao.fotosAtletas = dto.fotosAtletas;
+        inscricao.fotoModo = dto.fotoModo;
         inscricao.observacao = dto.observacao;
 
         // ── Precificação direta (do Campeonato) ──
@@ -123,8 +133,11 @@ export class InscricaoService {
         inscricao.categoria = dto.categoria;
         inscricao.modalidade = dto.modalidade;
         inscricao.tamanhoCamisa = dto.tamanhoCamisa;
+        inscricao.parceiros = dto.parceiros;
         inscricao.comprovanteUrl = dto.comprovanteUrl;
         inscricao.fotoAtletaUrl = dto.fotoAtletaUrl;
+        inscricao.fotosAtletas = dto.fotosAtletas;
+        inscricao.fotoModo = dto.fotoModo;
         inscricao.observacao = dto.observacao;
 
         // ── Precificação direta (do Campeonato) ──
@@ -214,6 +227,72 @@ export class InscricaoService {
         inscricao.comprovanteUpdatedAt = now;
         inscricao.comprovanteUpdateCount += 1;
 
+        await this.em.flush();
+        return inscricao;
+    }
+
+    async enviarFotos(
+        id: string,
+        usuarioId: string,
+        fotosAtletas: string[],
+        fotoModo: string,
+    ): Promise<Inscricao> {
+        const inscricao = await this.inscricaoRepo.findOne({
+            id,
+            usuario: { id: usuarioId },
+            isDeleted: false,
+        });
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+
+        // ── Limite de 1 atualização por dia ──
+        const now = new Date();
+        const today = now.toISOString().slice(0, 10);
+        const lastUpdateDay = inscricao.fotosUpdatedAt
+            ? inscricao.fotosUpdatedAt.toISOString().slice(0, 10)
+            : null;
+
+        if (lastUpdateDay !== today) {
+            inscricao.fotosUpdateCount = 0;
+        }
+
+        if (inscricao.fotosUpdateCount >= 1) {
+            throw new BadRequestException(
+                'Você já atualizou as fotos hoje. Tente novamente amanhã.',
+            );
+        }
+
+        inscricao.fotosAtletas = fotosAtletas;
+        inscricao.fotoModo = fotoModo;
+        inscricao.fotosUpdatedAt = now;
+        inscricao.fotosUpdateCount += 1;
+
+        await this.em.flush();
+        return inscricao;
+    }
+
+    async atualizarParceiros(
+        id: string,
+        usuarioId: string,
+        parceiros: { nome: string; cpf: string; tamanhoCamisa: string }[],
+    ): Promise<Inscricao> {
+        const inscricao = await this.inscricaoRepo.findOne({
+            id,
+            usuario: { id: usuarioId },
+            isDeleted: false,
+        });
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+        inscricao.parceiros = parceiros;
+        await this.em.flush();
+        return inscricao;
+    }
+
+    async atualizarParceirosAdmin(
+        id: string,
+        parceiros: { nome: string; cpf: string; tamanhoCamisa: string }[],
+    ): Promise<Inscricao> {
+        const inscricao = await this.inscricaoRepo.findOne({ id, isDeleted: false });
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+        inscricao.parceiros = parceiros;
         await this.em.flush();
         return inscricao;
     }

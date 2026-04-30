@@ -67,6 +67,40 @@ export class InscricaoController {
 
     @ApiBearerAuth('JWT-auth')
     @UseGuards(AuthGuard)
+    @Patch(':id/fotos')
+    async enviarFotos(
+        @Param('id') id: string,
+        @Body('fotosAtletas') fotosAtletas: string[],
+        @Body('fotoModo') fotoModo: string,
+        @Request() req: any,
+    ) {
+        const inscricao = await this.inscricaoService.enviarFotos(
+            id,
+            req.usuario.sub,
+            fotosAtletas,
+            fotoModo,
+        );
+        return new ResponseInscricaoDto(inscricao);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard)
+    @Patch(':id/parceiros')
+    async atualizarParceiros(
+        @Param('id') id: string,
+        @Body('parceiros') parceiros: { nome: string; cpf: string; tamanhoCamisa: string }[],
+        @Request() req: any,
+    ) {
+        const inscricao = await this.inscricaoService.atualizarParceiros(
+            id,
+            req.usuario.sub,
+            parceiros,
+        );
+        return new ResponseInscricaoDto(inscricao);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard)
     @Delete(':id')
     async cancelar(@Param('id') id: string, @Request() req: any) {
         await this.inscricaoService.cancelarByAtleta(id, req.usuario.sub);
@@ -123,6 +157,18 @@ export class InscricaoController {
         @Body('observacoesAdmin') observacoesAdmin?: string,
     ) {
         const inscricao = await this.inscricaoService.rejeitar(id, observacoesAdmin);
+        return new ResponseInscricaoDto(inscricao);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard, RolesGuard)
+    @Roles('admin', 'organizer')
+    @Patch(':id/parceiros-admin')
+    async atualizarParceirosAdmin(
+        @Param('id') id: string,
+        @Body('parceiros') parceiros: { nome: string; cpf: string; tamanhoCamisa: string }[],
+    ) {
+        const inscricao = await this.inscricaoService.atualizarParceirosAdmin(id, parceiros);
         return new ResponseInscricaoDto(inscricao);
     }
 
