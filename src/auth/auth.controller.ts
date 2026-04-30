@@ -31,7 +31,7 @@ export class AuthController {
             secure: this.isProd,
             sameSite: 'lax',
             maxAge,
-            domain: this.isProd ? process.env.COOKIE_DOMAIN : undefined,
+            domain: this.isProd ? (process.env.COOKIE_DOMAIN || '.sooacosports.com.br') : undefined,
         };
     }
 
