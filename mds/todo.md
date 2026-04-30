@@ -143,18 +143,6 @@
 
 ---
 
-## Módulo 3 — Configuração da Landing Page (futuro)
-- [ ] Endpoint para upload de banner do campeonato (bucket `banners` ✅ já criado)
-- [ ] Campos de customização visual (cores primária/secundária, texto hero)
-- [ ] Endpoint para salvar blocos da LP (seções habilitadas, ordem)
-- [ ] Upload de assets de LP (bucket `lp-assets` ✅ já criado)
-- [ ] Preview da LP antes de publicar
-
-## Módulo 4 — Escala (futuro)
-- [ ] Notificações por e-mail (confirmação inscrição, aprovação)
-- [ ] WebSocket para resultados ao vivo
-- [ ] Dashboard analítico (gráficos de inscrições por dia)
-
 ## Próximos Passos (UX Inscrição & Infraestrutura)
 - [x] Mostrar o preço na etapa 2 (seleção de modalidade) do formulário de inscrição
 - [x] Mostrar o preço/resumo na etapa 3 (hora de pagar) no formulário de inscrição
@@ -171,4 +159,77 @@
 - [x] Tornar o campo CPF obrigatório na criação de contas (`/auth/cadastro`)
 - [x] Implementar validador local de CPF no frontend
 - [x] Planejar arquitetura de storage (preparar para migração/uso do Supabase para banco e storage no futuro)
+
+---
+
+## Módulo 3 — Configuração da Landing Page (futuro)
+- [ ] Endpoint para upload de banner do campeonato (bucket `banners` ✅ já criado)
+- [ ] Campos de customização visual (cores primária/secundária, texto hero)
+- [ ] Endpoint para salvar blocos da LP (seções habilitadas, ordem)
+- [ ] Upload de assets de LP (bucket `lp-assets` ✅ já criado)
+- [ ] Preview da LP antes de publicar
+
+## Módulo 4 — Escala (futuro)
+- [ ] WebSocket para resultados ao vivo
+- [ ] Dashboard analítico (gráficos de inscrições por dia)
+
+---
+
+## Módulo 5 — Recuperação de Senha (Brevo SMTP)
+> Fluxo de "Esqueci minha senha" usando Brevo (ex-Sendinblue) como provedor SMTP gratuito.
+
+### 5.1 — Configuração do Brevo
+- [ ] Criar conta gratuita no [Brevo](https://www.brevo.com/) (300 emails/dia grátis)
+- [ ] Gerar credenciais SMTP (host, porta, user, password)
+- [ ] Adicionar variáveis de ambiente:
+  ```env
+  SMTP_HOST=smtp-relay.brevo.com
+  SMTP_PORT=587
+  SMTP_USER=<brevo-login>
+  SMTP_PASS=<brevo-smtp-key>
+  SMTP_FROM=noreply@sooacosports.com.br
+  ```
+
+### 5.2 — Módulo de E-mail
+- [ ] Criar módulo `mail/` (MailService)
+- [ ] Instalar `nodemailer` (`npm i nodemailer @types/nodemailer`)
+- [ ] `MailService.send(to, subject, html)` — envio genérico via SMTP Brevo
+- [ ] Configurar transporte com as variáveis `SMTP_*`
+- [ ] Template HTML base para e-mails (logo + footer)
+
+### 5.3 — Fluxo de Recuperação
+- [ ] Adicionar campo `resetToken` (string, nullable) e `resetTokenExpires` (Date, nullable) na entidade `Usuario`
+- [ ] `POST /auth/forgot-password` — recebe `{ email }`, gera token UUID, salva hash no banco, envia e-mail com link
+- [ ] `POST /auth/reset-password` — recebe `{ token, newPassword }`, valida token + expiração, atualiza senha, limpa token
+- [ ] Token expira em 1 hora (`resetTokenExpires = now + 1h`)
+- [ ] Salvar hash do token no banco (nunca o token bruto)
+- [ ] Template de e-mail: "Redefinir sua senha" com botão/link → `https://sooacosports.com.br/redefinir-senha?token=xxx`
+- [ ] Rate limit: máximo 3 solicitações por hora por e-mail
+- [ ] Rodar `schema:update` (auto-sync cuida disso)
+
+---
+
+## Módulo 6 — Verificação de E-mail
+> Garantir que o e-mail do usuário é válido. Modal persistente até verificar.
+
+### 6.1 — Entidade e Fluxo
+- [ ] Adicionar campo `emailVerificado` (boolean, default `false`) na entidade `Usuario`
+- [ ] Adicionar campo `emailVerifyToken` (string, nullable) na entidade `Usuario`
+- [ ] Incluir `emailVerificado` na resposta de login/register (dentro do objeto `usuario`)
+- [ ] Rodar `schema:update`
+
+### 6.2 — Endpoints
+- [ ] `POST /auth/send-verification` — gera token, envia e-mail com link de verificação
+  - Rota autenticada (precisa estar logado)
+  - Template: "Confirme seu e-mail" com botão → `https://sooacosports.com.br/verificar-email?token=xxx`
+  - Rate limit: máximo 3 envios por hora por usuário
+- [ ] `POST /auth/verify-email` — recebe `{ token }`, marca `emailVerificado = true`, limpa token
+  - Pode ser rota pública (token é validação suficiente)
+- [ ] No `signIn` e `register`, preencher `emailVerificado` no retorno
+
+### 6.3 — Envio automático no cadastro
+- [ ] Ao registrar conta (`register`), enviar e-mail de verificação automaticamente
+- [ ] Não bloquear o cadastro — o usuário pode usar a plataforma, mas verá o modal
+
+
 
