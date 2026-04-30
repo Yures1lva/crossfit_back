@@ -366,22 +366,24 @@ NEXT_PUBLIC_STORAGE_URL=https://xxxx.supabase.co/storage/v1/object/public
 - [ ] **Fase 3** — Supabase
   - [x] 👤 3.1 Criar conta e projeto no Supabase
   - [x] 👤 3.2 Buckets criados: avatars, atletas, banners, comprovantes (privado/20MB), lp-assets
-  - [ ] 👤 3.3 Configurar policies (público/privado) nos buckets ← **AGORA**
-  - [x] 👤 3.4 Anotar credenciais: `Project URL`, `service_role key`, `DB Host`, `DB Password`
-  - [x] 👤 3.5 Conexão testada + initial migration aplicada com sucesso
-  - [x] 🤖 3.6 `@supabase/supabase-js` instalado + Logger adicionado aos providers
-- [ ] **Fase 4** — Render
-  - [ ] 👤 4.1 Criar conta no [render.com](https://render.com)
-  - [ ] 👤 4.2 Conectar repositório `crossfit_back` e criar Web Service
-  - [ ] 👤 4.3 Preencher as variáveis de ambiente (copiar do plano acima)
-  - [ ] 👤 4.4 Rodar migrations via Render Shell: `npm run migration:up`
-  - [ ] 👤 4.5 Testar: abrir `https://<url>/api/docs` e verificar Swagger
-- [ ] **Fase 5** — Vercel
-  - [ ] 🤖 5.1 Ajustar `next.config` para imagens externas
+  - [ ] 👤 3.3 Configurar policies (público/privado) nos buckets
+  - [x] 👤 3.4 Anotar credenciais
+  - [x] 👤 3.5 Conexão testada + initial migration aplicada
+  - [x] 🤖 3.6 `@supabase/supabase-js` instalado + Logger
+- [x] **Fase 4** — Render ✅
+  - [x] 👤 4.1 Conta criada no Render
+  - [x] 👤 4.2 Web Service conectado ao repositório `crossfit_back`
+  - [x] 👤 4.3 Variáveis de ambiente preenchidas
+  - [x] 👤 4.4 Migrations aplicadas
+  - [x] 👤 4.5 Swagger funcionando em `crossfit-back.onrender.com/api/docs`
+- [ ] **Fase 5** — Vercel ← **AGORA**
+  - [x] 🤖 5.1 `next.config.ts` configurado com `remotePatterns` (Supabase + api.sooacosports.com.br)
+  - [x] 🤖 5.1b `.env.local.example` atualizado com URLs de prod
   - [ ] 👤 5.2 Criar projeto na [vercel.com](https://vercel.com) conectando `crossfit_home`
-  - [ ] 👤 5.3 Preencher variáveis: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_STORAGE_URL`
+  - [ ] 👤 5.3 Preencher variáveis na Vercel:
+    - `NEXT_PUBLIC_API_URL=https://api.sooacosports.com.br/api/v1`
+    - `NEXT_PUBLIC_STORAGE_URL=https://hzzwjlvocpkdrtxsdyma.supabase.co/storage/v1/object/public`
   - [ ] 👤 5.4 Teste end-to-end: cadastro → login → inscrição → upload → admin aprova
 - [ ] **Fase 6** — Pós-deploy
-  - [ ] 👤 6.1 Domínio customizado (se quiser)
+  - [ ] 👤 6.1 Configurar domínio `sooacosports.com.br` na Vercel + `api.sooacosports.com.br` no Render
   - [ ] 👤 6.2 Monitoramento (logs no Render, dashboard no Supabase)
-
