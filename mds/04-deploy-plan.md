@@ -93,57 +93,59 @@ STORAGE_DRIVER=local
 
 ---
 
-## Fase 2 — Preparar Cookies e CORS pra Cross-Domain
+## Fase 2 — Preparar Cookies e CORS (First-Party com sooacosports.com.br)
 
-Em produção, frontend (Vercel) e backend (Render) estão em domínios diferentes.
+Como front (`sooacosports.com.br`) e back (`api.sooacosports.com.br`) compartilham o mesmo domínio raiz, usamos cookies **first-party** com `sameSite: 'lax'` — mais seguro e não será bloqueado por navegadores.
 
 ### 2.1 Ajustar CORS no `main.ts`
 
 ```ts
-// De:
-app.enableCors({ origin: (origin, callback) => callback(null, true), ... });
-
-// Para:
 const allowedOrigins = process.env.FRONTEND_URL
     ? [process.env.FRONTEND_URL, 'http://localhost:3000']
     : ['http://localhost:3000'];
 
 app.enableCors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error(`Origin ${origin} not allowed by CORS`));
+        }
+    },
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
 });
 ```
 
-### 2.2 Ajustar cookies no `auth.service.ts`
+### 2.2 Ajustar cookies no `auth.controller.ts`
 
-- Em produção: `sameSite: 'none'`, `secure: true`
-- Em dev: `sameSite: 'lax'`, `secure: false`
-- Usar `process.env.NODE_ENV` pra decidir
+- `sameSite: 'lax'` — sempre (first-party, não precisa de `'none'`)
+- `secure: true` em produção (HTTPS)
+- `domain: '.sooacosports.com.br'` — o ponto inicial abrange subdomínios
 
 ```ts
 const isProd = process.env.NODE_ENV === 'production';
 const cookieOptions = {
     httpOnly: true,
     secure: isProd,
-    sameSite: isProd ? 'none' as const : 'lax' as const,
-    domain: isProd ? process.env.COOKIE_DOMAIN : undefined,
+    sameSite: 'lax' as const,
+    domain: isProd ? process.env.COOKIE_DOMAIN : undefined, // .sooacosports.com.br
 };
 ```
 
-### 2.3 Adicionar variáveis
+### 2.3 Variáveis de ambiente
 
 ```env
-FRONTEND_URL=https://seu-app.vercel.app
-COOKIE_DOMAIN=.onrender.com   # ou domínio customizado
+FRONTEND_URL=https://sooacosports.com.br
+COOKIE_DOMAIN=.sooacosports.com.br
 ```
 
 ### 2.4 Testar localmente
 
-- [ ] Login funciona normal em dev
-- [ ] Cookies são setados corretamente
-- [ ] CORS não bloqueia localhost:3000 → localhost:3004
+- [x] Login funciona normal em dev
+- [x] Cookies são setados corretamente
+- [x] CORS não bloqueia localhost:3000 → localhost:3004
 
 ---
 
@@ -347,26 +349,27 @@ NEXT_PUBLIC_STORAGE_URL=https://xxxx.supabase.co/storage/v1/object/public
 
 > 🤖 = Antigravity faz (código) · 👤 = Você faz (plataforma/config manual)
 
-- [ ] **Fase 1** — Abstração do Storage
-  - [ ] 🤖 1.1 Interface StorageProvider
-  - [ ] 🤖 1.2 LocalStorageProvider
-  - [ ] 🤖 1.3 SupabaseStorageProvider
-  - [ ] 🤖 1.4 UploadModule factory
-  - [ ] 🤖 1.5 UploadService refatorado
-  - [ ] 🤖 1.6 UploadController ajustado
-  - [ ] 🤖 1.7 Variáveis no `.env.example`
-  - [ ] 👤 1.8 Testar: inscrição com upload funciona local
-- [ ] **Fase 2** — CORS e Cookies
-  - [ ] 🤖 2.1 CORS restrito por `FRONTEND_URL`
-  - [ ] 🤖 2.2 Cookies cross-domain (sameSite/secure)
-  - [ ] 🤖 2.3 Variáveis no `.env.example`
-  - [ ] 👤 2.4 Testar: login funciona local
+- [x] **Fase 1** — Abstração do Storage
+  - [x] 🤖 1.1 Interface StorageProvider
+  - [x] 🤖 1.2 LocalStorageProvider
+  - [x] 🤖 1.3 SupabaseStorageProvider
+  - [x] 🤖 1.4 UploadModule factory
+  - [x] 🤖 1.5 UploadService refatorado
+  - [x] 🤖 1.6 UploadController ajustado
+  - [x] 🤖 1.7 Variáveis no `.env.example`
+  - [x] 🤖 1.8 Testado: upload local funciona com o novo provider
+- [x] **Fase 2** — CORS e Cookies
+  - [x] 🤖 2.1 CORS restrito por `FRONTEND_URL`
+  - [x] 🤖 2.2 Cookies cross-domain (sameSite/secure/COOKIE_DOMAIN)
+  - [x] 🤖 2.3 Variáveis no `.env.example`
+  - [x] 🤖 2.4 `mikro-orm.config.ts` com SSL condicional (host remoto)
 - [ ] **Fase 3** — Supabase
-  - [ ] 👤 3.1 Criar conta e projeto no [supabase.com](https://supabase.com)
-  - [ ] 👤 3.2 Criar os 5 buckets no dashboard (avatars, atletas, banners, comprovantes, lp-assets)
-  - [ ] 👤 3.3 Configurar policies (público/privado) nos buckets
-  - [ ] 👤 3.4 Anotar credenciais: `Project URL`, `service_role key`, `DB Host`, `DB Password`
-  - [ ] 👤 3.5 Testar conexão: apontar `.env` local pro Supabase e rodar `npm run migration:up`
+  - [x] 👤 3.1 Criar conta e projeto no Supabase
+  - [x] 👤 3.2 Buckets criados: avatars, atletas, banners, comprovantes (privado/20MB), lp-assets
+  - [ ] 👤 3.3 Configurar policies (público/privado) nos buckets ← **AGORA**
+  - [x] 👤 3.4 Anotar credenciais: `Project URL`, `service_role key`, `DB Host`, `DB Password`
+  - [x] 👤 3.5 Conexão testada + initial migration aplicada com sucesso
+  - [x] 🤖 3.6 `@supabase/supabase-js` instalado + Logger adicionado aos providers
 - [ ] **Fase 4** — Render
   - [ ] 👤 4.1 Criar conta no [render.com](https://render.com)
   - [ ] 👤 4.2 Conectar repositório `crossfit_back` e criar Web Service
@@ -381,3 +384,4 @@ NEXT_PUBLIC_STORAGE_URL=https://xxxx.supabase.co/storage/v1/object/public
 - [ ] **Fase 6** — Pós-deploy
   - [ ] 👤 6.1 Domínio customizado (se quiser)
   - [ ] 👤 6.2 Monitoramento (logs no Render, dashboard no Supabase)
+

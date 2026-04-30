@@ -2,6 +2,8 @@ import 'dotenv/config';
 import { MikroOrmModuleOptions } from '@mikro-orm/nestjs';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 
+const isRemoteDb = !['localhost', '127.0.0.1'].includes(process.env.DB_HOST || 'localhost');
+
 const config: MikroOrmModuleOptions = {
     entities: ['./dist/**/*.entity.js'],
     entitiesTs: ['./src/**/*.entity.ts'],
@@ -22,6 +24,14 @@ const config: MikroOrmModuleOptions = {
         min: Number(process.env.DB_POOL_MIN || 1),
         max: Number(process.env.DB_POOL_MAX || 10),
     },
+    // SSL obrigatório para conexões remotas (Supabase, Render, etc.)
+    ...(isRemoteDb && {
+        driverOptions: {
+            connection: {
+                ssl: { rejectUnauthorized: false },
+            },
+        },
+    }),
 };
 
 export default config;

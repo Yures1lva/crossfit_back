@@ -31,8 +31,19 @@ async function bootstrap() {
   app.use(cookieParser());
 
   // ── CORS
+  const allowedOrigins = process.env.FRONTEND_URL
+      ? [process.env.FRONTEND_URL, 'http://localhost:3000']
+      : ['http://localhost:3000'];
+
   app.enableCors({
-    origin: (origin, callback) => callback(null, true),
+    origin: (origin, callback) => {
+      // Permite requests sem origin (ex: Postman, curl, mobile)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true,
     allowedHeaders: [

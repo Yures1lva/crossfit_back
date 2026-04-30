@@ -1,34 +1,42 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
-import * as fs from 'fs';
 import * as path from 'path';
+import type { StorageProvider } from './storage';
+import { STORAGE_PROVIDER } from './storage';
 
 @Injectable()
 export class UploadService {
-    private readonly uploadDir = path.join(process.cwd(), 'public', 'uploads');
+    constructor(
+        @Inject(STORAGE_PROVIDER)
+        private readonly storage: StorageProvider,
+    ) {}
 
-    constructor() {
-        // Garante que o diretório existe
-        if (!fs.existsSync(this.uploadDir)) {
-            fs.mkdirSync(this.uploadDir, { recursive: true });
-        }
-    }
-
+    /**
+     * Salva um arquivo no storage configurado.
+     * Retorna a URL pública (local) ou absoluta (supabase).
+     */
     async saveFile(
         file: Express.Multer.File,
         subfolder: string = 'geral',
     ): Promise<string> {
-        const subDir = path.join(this.uploadDir, subfolder);
-        if (!fs.existsSync(subDir)) {
-            fs.mkdirSync(subDir, { recursive: true });
-        }
-
         const ext = path.extname(file.originalname);
         const filename = `${uuidv4()}${ext}`;
-        const filepath = path.join(subDir, filename);
 
-        fs.writeFileSync(filepath, file.buffer);
+        return this.storage.upload(subfolder, filename, file.buffer, file.mimetype);
+    }
 
-        return `/uploads/${subfolder}/${filename}`;
+    /** Retorna URL pública para um arquivo */
+    getPublicUrl(bucket: string, filePath: string): string {
+        return this.storage.getPublicUrl(bucket, filePath);
+    }
+
+    /** Retorna URL assinada (para arquivos privados como comprovantes) */
+    async getSignedUrl(bucket: string, filePath: string, expiresIn?: number): Promise<string> {
+        return this.storage.getSignedUrl(bucket, filePath, expiresIn);
+    }
+
+    /** Remove um arquivo do storage */
+    async deleteFile(bucket: string, filePath: string): Promise<void> {
+        return this.storage.delete(bucket, filePath);
     }
 }
