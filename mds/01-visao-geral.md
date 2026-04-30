@@ -8,8 +8,12 @@ Este backend serve como a camada de regras de negócio e persistência para a pl
 
 - Autenticação e autorização via JWT (access + refresh token em cookies `httpOnly`)
 - Gestão de campeonatos, inscrições, categorias e resultados
+- Inscrições em equipe (dupla/trio) com gestão de parceiros
+- Upload de arquivos com abstração de storage (Local / Supabase / MinIO)
+- Inscrição pública (sem conta) com vinculação automática por CPF+email
 - Landing Page configurável por campeonato (banner, cores, regras)
 - Confirmação manual de pagamento pelo admin
+- Auto-sync do schema no bootstrap (sem migrations manuais)
 - Documentação automática via Swagger
 
 ---
@@ -20,9 +24,10 @@ Este backend serve como a camada de regras de negócio e persistência para a pl
 |---|---|---|
 | Framework | NestJS 11 | Arquitetura modular, DI, Guards, Pipes |
 | Linguagem | TypeScript 5.7 | Tipagem forte em todo o projeto |
-| Banco de Dados | PostgreSQL | Dados relacionais |
-| ORM | MikroORM 6 | Mapeamento entidade→tabela, migrations |
+| Banco de Dados | PostgreSQL | Dados relacionais (Supabase em prod) |
+| ORM | MikroORM 6 | Mapeamento entidade→tabela, auto schema sync |
 | Auth | JWT + bcrypt | Access token + refresh token hasheado |
+| Storage | StorageProvider (Local/Supabase/MinIO) | Upload abstrato — troca de driver via env |
 | Documentação | Swagger (`@nestjs/swagger`) | Auto-gerado a partir dos decorators |
 | Validação | class-validator + class-transformer | DTOs autodescritivos e tipados |
 | Config | `@nestjs/config` + `.env` | Variáveis de ambiente centralizadas |
@@ -31,7 +36,7 @@ Este backend serve como a camada de regras de negócio e persistência para a pl
 
 ## Fases de Desenvolvimento
 
-### Módulo 1 — Core & Registro (MVP Launch)
+### Módulo 1 — Core & Registro (MVP Launch) ✅
 
 | Entrega | Módulo Backend |
 |---|---|
@@ -40,16 +45,22 @@ Este backend serve como a camada de regras de negócio e persistência para a pl
 | Formulário dinâmico de inscrição | `inscricao/` |
 | Landing Page personalizada | `campeonato/` (banner, regras, info) |
 
-### Módulo 2 — Gestão de Campeonatos
+### Módulo 2 — Gestão Completa ✅
 
-- CRUD completo de campeonatos
-- Categorias (RX, Scaled, Teen, Masters)
-- Cronograma e programação de WODs
-- Tabelas de classificação
+- CRUD completo de campeonatos com configuração dinâmica
+- Categorias, lotes de preços, tamanhos de camisa
+- Gestão de inscrições (aprovar/rejeitar, estatísticas)
+- Inscrição pública sem conta (CPF + email)
+- Upload de arquivos (StorageProvider abstrato)
+- Inscrições em equipe (parceiros com nome, CPF, camisa)
 
-### Módulo 3 — Escala & Comunicação
+### Módulo 3 — Configuração da Landing Page (futuro)
+- Upload de banner, assets
+- Customização visual (cores, textos)
 
-- Notificações por e-mail
+### Módulo 4 — Escala & Comunicação (futuro)
+- Recuperação de senha via Brevo SMTP
+- Verificação de e-mail com modal persistente
 - WebSocket para resultados ao vivo
 - Exportação CSV de resultados
 - Dashboard analítico
@@ -72,10 +83,17 @@ JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_SECRET=seu_refresh_secret_aqui
 JWT_REFRESH_EXPIRES_IN=7d
 
+# Storage (local | supabase | minio)
+STORAGE_DRIVER=local
+SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_SERVICE_KEY=eyJhbG...
+
 # App
 PORT=3004
 NODE_ENV=development
 DOMAIN=localhost
+FRONTEND_URL=http://localhost:3000
+COOKIE_DOMAIN=localhost
 ```
 
 ---
@@ -85,8 +103,9 @@ DOMAIN=localhost
 ```bash
 npm install
 npm run start:dev        # hot reload na porta 3004
-npm run migration:up     # aplicar migrations
+# Schema sync é automático no bootstrap
 ```
 
 > **Swagger UI:** `http://localhost:3004/api/docs`
 > **Frontend:** porta `3000`
+> **Produção:** `api.sooacosports.com.br`

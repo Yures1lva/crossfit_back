@@ -15,7 +15,8 @@
      → Hash do refresh com bcrypt → salva no banco
      → Seta cookies: access_token + refresh_token (httpOnly)
      → Seta cookie: user_role (não-httpOnly — Next.js middleware lê)
-     → Retorna: { usuario } — SEM tokens no body
+     → linkToUser(userId, cpf, email) — vincula inscrições órfãs
+     → Retorna: { usuario: { id, nome, email, cpf, role } } — SEM tokens no body
 
 2. REQUEST AUTENTICADO
    GET /api/v1/campeonatos (com cookie access_token)
@@ -38,11 +39,13 @@
 
 ## Cookies
 
-| Cookie | httpOnly | Duração | Quem lê |
-|---|---|---|---|
-| `access_token` | ✅ Sim | 15 min | AuthGuard (NestJS) |
-| `refresh_token` | ✅ Sim | 7 dias | RefreshTokenGuard (NestJS) |
-| `user_role` | ❌ Não | 7 dias | Middleware Edge (Next.js) |
+| Cookie | httpOnly | Duração | Quem lê | Domain (prod) |
+|---|---|---|---|---|
+| `access_token` | ✅ Sim | 15 min | AuthGuard (NestJS) | `.sooacosports.com.br` |
+| `refresh_token` | ✅ Sim | 7 dias | RefreshTokenGuard (NestJS) | `.sooacosports.com.br` |
+| `user_role` | ❌ Não | 7 dias | Middleware Edge (Next.js) | `.sooacosports.com.br` |
+
+> Cookies usam `sameSite: 'lax'` e `secure: true` em produção (first-party).
 
 ---
 
@@ -71,32 +74,59 @@ Authorization: Bearer <token> (alternativa ao cookie)
 
 ---
 
-## Rotas — Módulo 1
+## Rotas — Completas
 
 ### Auth
 | Método | Rota | Auth | Descrição |
 |---|---|---|---|
-| `POST` | `/auth/login` | ❌ | Login — seta cookies |
-| `POST` | `/auth/register` | ❌ | Cadastro de usuário |
+| `POST` | `/auth/login` | ❌ | Login — seta cookies, retorna `{ usuario }` com CPF |
+| `POST` | `/auth/register` | ❌ | Cadastro (CPF obrigatório) + linkToUser |
 | `POST` | `/auth/refresh` | RefreshGuard | Renova access_token |
 | `POST` | `/auth/logout` | ❌ | Limpa cookies |
 | `GET` | `/auth/profile` | AuthGuard | Dados do logado |
+| `POST` | `/auth/check-account` | ❌ | Verifica se existe conta por email/CPF |
 
 ### Campeonatos
 | Método | Rota | Auth | Role | Descrição |
 |---|---|---|---|---|
 | `GET` | `/campeonatos` | ❌ | — | Lista públicos |
 | `GET` | `/campeonatos/:id` | ❌ | — | Detalhe + LP data |
+| `GET` | `/campeonatos/:id/configuracao` | ❌ | — | Categorias, camisas, campos |
 | `POST` | `/campeonatos` | ✅ | `admin` | Cria campeonato |
 | `PUT` | `/campeonatos/:id` | ✅ | `admin` | Atualiza |
+| `PUT` | `/campeonatos/:id/configuracao` | ✅ | `admin` | Atualiza config do formulário |
 | `DELETE` | `/campeonatos/:id` | ✅ | `admin` | Soft delete |
 
 ### Inscrições
 | Método | Rota | Auth | Role | Descrição |
 |---|---|---|---|---|
-| `POST` | `/campeonatos/:id/inscrever` | ✅ | `athlete` | Inscrição |
-| `GET` | `/campeonatos/:id/inscricoes` | ✅ | `admin` | Lista inscrições |
-| `PATCH` | `/inscricoes/:id/pagamento` | ✅ | `admin` | Confirma pagamento |
+| `POST` | `/inscricoes` | ✅ | athlete | Inscrição autenticada |
+| `POST` | `/inscricoes/public` | ❌ | — | Inscrição pública (CPF+email) |
+| `GET` | `/inscricoes/minhas` | ✅ | athlete | Inscrições do atleta logado |
+| `GET` | `/inscricoes/campeonato/:id` | ✅ | admin | Lista por campeonato + filtros |
+| `GET` | `/inscricoes/campeonato/:id/stats` | ✅ | admin | Estatísticas |
+| `GET` | `/inscricoes/:id` | ✅ | admin | Detalhes completos |
+| `PATCH` | `/inscricoes/:id/aprovar` | ✅ | admin | Aprovar + observações |
+| `PATCH` | `/inscricoes/:id/rejeitar` | ✅ | admin | Rejeitar + motivo |
+| `PATCH` | `/inscricoes/:id/comprovante` | ✅ | athlete | Enviar/trocar comprovante |
+| `PATCH` | `/inscricoes/:id/fotos` | ✅ | athlete | Enviar/trocar fotos |
+| `PATCH` | `/inscricoes/:id/parceiros` | ✅ | athlete | Editar parceiros da equipe |
+| `PATCH` | `/inscricoes/:id/parceiros-admin` | ✅ | admin | Admin edita parceiros |
+| `DELETE` | `/inscricoes/:id` | ✅ | athlete | Cancelar inscrição |
+
+### Upload
+| Método | Rota | Auth | Descrição |
+|---|---|---|---|
+| `POST` | `/upload/image/:subfolder` | ✅ | Upload imagem autenticado |
+| `POST` | `/upload/document/:subfolder` | ✅ | Upload documento autenticado |
+| `POST` | `/upload/public/image/:subfolder` | ❌ | Upload público (atletas/comprovantes) |
+| `POST` | `/upload/public/document/:subfolder` | ❌ | Upload público de documentos |
+
+### Cidades
+| Método | Rota | Auth | Descrição |
+|---|---|---|---|
+| `GET` | `/cidades` | ❌ | Lista cidades (com busca) |
+| `POST` | `/cidades` | ✅ | Criar cidade |
 
 ---
 
@@ -104,38 +134,50 @@ Authorization: Bearer <token> (alternativa ao cookie)
 
 ### Entrada (Create)
 ```ts
-export class CreateCampeonatoDto {
+export class CreateInscricaoDto {
   @IsNotEmpty() @IsString()
-  nome!: string;
+  nomeAtleta!: string;
+
+  @IsNotEmpty() @IsString()
+  cpf!: string;
+
+  @IsNotEmpty() @IsEmail()
+  email!: string;
+
+  @IsNotEmpty() @IsString()
+  categoria!: string;
+
+  @IsNotEmpty() @IsString()
+  tamanhoCamisa!: string;
+
+  @IsOptional()
+  parceiros?: { nome: string; cpf: string; tamanhoCamisa: string }[];
 
   @IsOptional() @IsString()
-  descricao?: string;
-
-  @IsOptional() @IsString()
-  bannerUrl?: string;
-
-  @IsOptional() @IsString()
-  regulamento?: string;
+  fotoModo?: 'grupo' | 'individual';
 }
 ```
 
 ### Saída (Response)
 ```ts
-export class ResponseCampeonatoDto {
+export class ResponseInscricaoDto {
   id: string;
-  nome: string;
-  descricao?: string;
-  bannerUrl?: string;
+  nomeAtleta: string;
+  cpf: string;
+  email: string;
+  categoria: string;
+  tamanhoCamisa: string;
   status: string;
+  parceiros: any[];
+  fotosAtletas: string[];
+  fotoModo: string;
+  comprovanteUrl: string;
+  fotoAtletaUrl: string;
   createdAt: Date;
-
-  constructor(entity: Campeonato) {
-    // mapeia apenas campos seguros
-  }
 }
 ```
 
 ### Update
 ```ts
-export class UpdateCampeonatoDto extends PartialType(CreateCampeonatoDto) {}
+export class UpdateInscricaoDto extends PartialType(CreateInscricaoDto) {}
 ```

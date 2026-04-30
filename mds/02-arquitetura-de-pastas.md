@@ -19,8 +19,8 @@ src/
     dto/
       signin.dto.ts
       response-signin.dto.ts
-    auth.controller.ts
-    auth.service.ts
+    auth.controller.ts               ← login, register, refresh, logout, check-account
+    auth.service.ts                  ← bcrypt, JWT, linkToUser, CPF no retorno
     auth.module.ts                   ← @Global()
 
   usuario/
@@ -29,7 +29,7 @@ src/
       update-usuario.dto.ts
       response-usuario.dto.ts
     entities/
-      usuario.entity.ts
+      usuario.entity.ts             ← nome, email, cpf (obrigatório), role, senha
     usuario.controller.ts
     usuario.service.ts
     usuario.module.ts
@@ -40,21 +40,38 @@ src/
       update-campeonato.dto.ts
       response-campeonato.dto.ts
     entities/
-      campeonato.entity.ts
-    campeonato.controller.ts
+      campeonato.entity.ts           ← categorias, tamanhosCamisa, precosModalidade, loteNome, etc.
+    campeonato.controller.ts         ← CRUD + GET/PUT configuração
     campeonato.service.ts
     campeonato.module.ts
 
   inscricao/
     dto/
-      create-inscricao.dto.ts
+      create-inscricao.dto.ts        ← cpf, email, nomeAtleta obrigatórios
       update-inscricao.dto.ts
       response-inscricao.dto.ts
     entities/
-      inscricao.entity.ts
-    inscricao.controller.ts
-    inscricao.service.ts
+      inscricao.entity.ts            ← usuario nullable, parceiros JSON, fotosAtletas, fotoModo
+    inscricao.controller.ts          ← public + autenticado + admin (parceiros, fotos, comprovante)
+    inscricao.service.ts             ← createPublic, linkToUser, parceiros, validação duplicidade
     inscricao.module.ts
+
+  upload/
+    storage/
+      storage.interface.ts           ← StorageProvider interface + token STORAGE_PROVIDER
+      local.storage.ts               ← Implementação filesystem local (dev)
+      supabase.storage.ts            ← Implementação Supabase Storage (prod atual)
+      minio.storage.ts               ← Implementação MinIO (futuro VPS)
+      index.ts                       ← re-exports
+    upload.controller.ts             ← autenticado + público (subfolder restrito)
+    upload.service.ts                ← saveFile, getSignedUrl, 5MB validação
+    upload.module.ts                 ← Factory provider decide driver via STORAGE_DRIVER
+
+  cidade/
+    cidade.controller.ts             ← Lista cidades com busca
+    cidade.service.ts
+    cidade.entity.ts
+    cidade.module.ts
 
   common/
     filters/
@@ -65,9 +82,9 @@ src/
     pipes/
     interceptors/
 
-  main.ts                            ← Bootstrap (CORS, cookies, Swagger, ValidationPipe)
+  main.ts                            ← Bootstrap (CORS, cookies, Swagger, auto schema sync)
   app.module.ts                      ← Módulo raiz
-  mikro-orm.config.ts                ← Configuração do ORM e banco
+  mikro-orm.config.ts                ← Config ORM, SSL condicional, schemaGenerator
 ```
 
 ---
@@ -107,8 +124,28 @@ create(@Body() dto, @CurrentUser() user) { ... }
 |---|---|---|
 | GET público | Nenhum | `GET /campeonatos/:id` |
 | GET autenticado | `AuthGuard` | `GET /auth/profile` |
-| POST/PUT/DELETE | `AuthGuard` + `RolesGuard` | `POST /campeonatos` |
+| POST/PUT/DELETE admin | `AuthGuard` + `RolesGuard` | `POST /campeonatos` |
+| POST público (inscrição) | Nenhum | `POST /inscricoes/public` |
+| POST público (upload) | Nenhum | `POST /upload/public/image/:subfolder` |
 | Refresh token | `RefreshTokenGuard` | `POST /auth/refresh` |
+
+---
+
+## Storage — Abstração de Provider
+
+```
+STORAGE_DRIVER=local     → LocalStorageProvider (dev — salva em public/uploads/)
+STORAGE_DRIVER=supabase  → SupabaseStorageProvider (prod — buckets Supabase)
+STORAGE_DRIVER=minio     → MinioStorageProvider (futuro VPS)
+```
+
+| Bucket | Acesso | Uso |
+|---|---|---|
+| `atletas` | Público | Fotos dos atletas |
+| `comprovantes` | Privado (signed URL) | Comprovantes de pagamento |
+| `avatars` | Público | Fotos de perfil |
+| `banners` | Público | Banners de campeonatos |
+| `lp-assets` | Público | Assets de landing pages |
 
 ---
 
@@ -120,3 +157,4 @@ create(@Body() dto, @CurrentUser() user) { ... }
 4. **Nunca retornar entidade bruta** — sempre usar ResponseDto
 5. **Nunca hardcodar segredos** — sempre usar `ConfigService`
 6. **Controller só roteia** — lógica de negócio no Service
+7. **Auto schema sync** — `updateSchema({ safe: true })` no bootstrap
