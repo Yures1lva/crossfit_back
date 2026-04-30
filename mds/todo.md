@@ -51,19 +51,25 @@
 - [x] Adicionar campo `comprovanteUrl` (string, nullable) — URL do arquivo uploaded
 - [x] Adicionar campo `fotoAtletaUrl` (string, nullable) — URL da foto do atleta
 - [x] Adicionar campo `observacoesAdmin` (text, nullable) — notas do admin ao aprovar/rejeitar
+- [x] Adicionar campo `parceiros` (JSON, nullable) — array `[{ nome, cpf, tamanhoCamisa }]`
+- [x] Adicionar campo `fotosAtletas` (JSON, nullable) — array de URLs de fotos
+- [x] Adicionar campo `fotoModo` (string, nullable) — `'grupo'` ou `'individual'`
+- [x] Adicionar campos de controle: `fotosUpdateCount`, `fotosUpdatedAt`, `comprovanteUpdateCount`, `comprovanteUpdatedAt`
 - [x] Status flow expandido: `pending → awaiting_payment → payment_uploaded → approved → rejected`
 - [x] Atualizar DTOs (Create, Update, Response)
 - [x] Rodar `schema:update`
 
-### 2.3 — Upload de Arquivos
+### 2.3 — Upload de Arquivos & Storage
 > Comprovante de pagamento e foto do atleta precisam ser uploaded e armazenados.
 
 - [x] Criar módulo `upload/` (UploadController, UploadService)
 - [x] Endpoint `POST /api/v1/upload/image` — aceita imagem (jpg, png, webp), retorna URL
 - [x] Endpoint `POST /api/v1/upload/document` — aceita imagem ou PDF, retorna URL
-- [x] Salvar arquivos em `public/uploads/` (dev) ou storage externo (prod)
+- [x] **StorageProvider abstração** — interface + LocalStorage + SupabaseStorage
+- [x] **Supabase Storage em produção** — bucket `comprovantes` (privado, signed URLs) + `atletas` (público)
 - [x] Validação: tamanho máximo 5MB, tipos permitidos (image/*, application/pdf)
 - [x] Gerar nome único (UUID) para evitar colisões
+- [x] **Signed URLs** para comprovantes — `getSignedUrl(bucket, filename, 3600)`
 
 ### 2.4 — Rotas Admin: Gestão de Campeonatos
 > CRUD completo de campeonatos com configuração de formulário dinâmico.
@@ -80,8 +86,17 @@
 - [x] `GET /api/v1/inscricoes/:id` — detalhes completos da inscrição (dados do atleta, comprovante)
 - [x] `PATCH /api/v1/inscricoes/:id/aprovar` — mudar status para `approved` + observações
 - [x] `PATCH /api/v1/inscricoes/:id/rejeitar` — mudar status para `rejected` + motivo
+- [x] `PATCH /api/v1/inscricoes/:id/parceiros-admin` — admin edita/adiciona parceiros da equipe
 - [x] `GET /api/v1/inscricoes/campeonato/:id/stats` — contagem por status e por categoria
 - [x] Proteger todas as rotas com `@Roles('admin', 'organizer')`
+
+### 2.6 — Rotas do Atleta: Gestão de Inscrição
+> O atleta pode gerenciar sua própria inscrição.
+
+- [x] `PATCH /api/v1/inscricoes/:id/comprovante` — enviar/trocar comprovante (limite diário)
+- [x] `PATCH /api/v1/inscricoes/:id/fotos` — enviar/trocar fotos (limite diário)
+- [x] `PATCH /api/v1/inscricoes/:id/parceiros` — atleta edita/adiciona parceiros da equipe
+- [x] `DELETE /api/v1/inscricoes/:id` — cancelar inscrição
 
 ---
 
@@ -115,10 +130,24 @@
 
 ---
 
+## Módulo 2.7 — Inscrições em Equipe & Infraestrutura ✅
+> Gestão de parceiros, fotos, validações e auto-sync do schema.
+
+- [x] **Parceiros (JSON)** — campo `parceiros` na entidade `Inscricao` (`[{ nome, cpf, tamanhoCamisa }]`)
+- [x] **Fotos de atletas** — campos `fotosAtletas` (JSON array), `fotoModo`, `fotosUpdateCount`, `fotosUpdatedAt`
+- [x] **Endpoints de parceiros** — `PATCH :id/parceiros` (atleta) e `PATCH :id/parceiros-admin` (admin)
+- [x] **Endpoints de fotos** — `PATCH :id/fotos` com limite diário (1x/dia)
+- [x] **CPF no auth** — resposta de login/register inclui `cpf` do usuário
+- [x] **Auto schema sync** — `updateSchema({ safe: true })` no bootstrap (`main.ts`)
+- [x] **Validação 5MB backend** — já presente no `UploadService` (fileFilter)
+
+---
+
 ## Módulo 3 — Configuração da Landing Page (futuro)
-- [ ] Endpoint para upload de banner do campeonato
+- [ ] Endpoint para upload de banner do campeonato (bucket `banners` ✅ já criado)
 - [ ] Campos de customização visual (cores primária/secundária, texto hero)
 - [ ] Endpoint para salvar blocos da LP (seções habilitadas, ordem)
+- [ ] Upload de assets de LP (bucket `lp-assets` ✅ já criado)
 - [ ] Preview da LP antes de publicar
 
 ## Módulo 4 — Escala (futuro)
@@ -141,5 +170,5 @@
 - [x] Modal de cancelamento de inscrição usando `useModal` (substituiu `confirm()` nativo)
 - [x] Tornar o campo CPF obrigatório na criação de contas (`/auth/cadastro`)
 - [x] Implementar validador local de CPF no frontend
-- [ ] Planejar arquitetura de storage (preparar para migração/uso do Supabase para banco e storage no futuro)
+- [x] Planejar arquitetura de storage (preparar para migração/uso do Supabase para banco e storage no futuro)
 
