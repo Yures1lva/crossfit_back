@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional, IsObject, IsEmail, IsArray, ValidateNested } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsObject, IsEmail, IsArray, ValidateNested, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -83,6 +83,22 @@ export class CreateInscricaoDto {
     @IsOptional()
     @IsString()
     fotoModo?: string;
+
+    // ── Documentos obrigatórios ──
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    laudoMedicoUrl?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    documentoIdentidadeUrl?: string;
+
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsBoolean()
+    termoAceito!: boolean;
 
     @ApiPropertyOptional()
     @IsOptional()

@@ -16,7 +16,7 @@ const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
 const DOCUMENT_MIMES = [...IMAGE_MIMES, 'application/pdf'];
-const PUBLIC_SUBFOLDERS = ['atletas', 'comprovantes'];
+const PUBLIC_SUBFOLDERS = ['atletas', 'comprovantes', 'documentos', 'regulamentos'];
 
 @ApiTags('Upload')
 @Controller('upload')

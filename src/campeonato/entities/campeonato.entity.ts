@@ -47,6 +47,19 @@ export class Campeonato {
     @Property({ nullable: true, type: 'text' })
     regulamento?: string;
 
+    /** 'texto' = exibe em modal, 'pdf' = download direto */
+    @Property({ nullable: true })
+    regulamentoTipo?: string;
+
+    @Property({ nullable: true })
+    regulamentoPdfUrl?: string;
+
+    @Property({ nullable: true })
+    termoResponsabilidadePdfUrl?: string;
+
+    @Property({ nullable: true })
+    termoUsoImagemPdfUrl?: string;
+
     @Property({ nullable: true, type: 'json' })
     lpConfig?: {
         corPrimaria?: string;

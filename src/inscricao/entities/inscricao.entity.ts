@@ -93,6 +93,25 @@ export class Inscricao {
     @Property({ default: 0 })
     fotosUpdateCount: number = 0;
 
+    // ── Documentos obrigatórios ───────────────
+    @Property({ nullable: true })
+    laudoMedicoUrl?: string;
+
+    @Property({ nullable: true })
+    laudoMedicoUpdatedAt?: Date;
+
+    @Property({ nullable: true })
+    documentoIdentidadeUrl?: string;
+
+    @Property({ nullable: true })
+    documentoIdentidadeUpdatedAt?: Date;
+
+    @Property({ default: false })
+    termoAceito: boolean = false;
+
+    @Property({ nullable: true })
+    termoAceitoEm?: Date;
+
     // ── Admin ────────────────────────────────
     @Property({ nullable: true, type: 'text' })
     observacao?: string;

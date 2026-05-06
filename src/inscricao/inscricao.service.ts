@@ -31,7 +31,7 @@ export class InscricaoService {
         return { valor, loteNome: camp.loteNome };
     }
 
-    /** Mapeia a URL do comprovante e fotos para Signed URLs, se necessário */
+    /** Mapeia a URL do comprovante, documentos e fotos para Signed URLs, se necessário */
     private async mapSignedUrls(inscricoes: Inscricao | Inscricao[]): Promise<void> {
         const items = Array.isArray(inscricoes) ? inscricoes : [inscricoes];
         for (const inscricao of items) {
@@ -39,6 +39,22 @@ export class InscricaoService {
             if (inscricao.comprovanteUrl && !inscricao.comprovanteUrl.startsWith('http')) {
                 try {
                     inscricao.comprovanteUrl = await this.uploadService.getSignedUrl('comprovantes', inscricao.comprovanteUrl, 3600);
+                } catch (e) {
+                    // Falha silenciosa
+                }
+            }
+            // Laudo médico (bucket privado)
+            if (inscricao.laudoMedicoUrl && !inscricao.laudoMedicoUrl.startsWith('http')) {
+                try {
+                    inscricao.laudoMedicoUrl = await this.uploadService.getSignedUrl('documentos', inscricao.laudoMedicoUrl, 3600);
+                } catch (e) {
+                    // Falha silenciosa
+                }
+            }
+            // Documento de identidade (bucket privado)
+            if (inscricao.documentoIdentidadeUrl && !inscricao.documentoIdentidadeUrl.startsWith('http')) {
+                try {
+                    inscricao.documentoIdentidadeUrl = await this.uploadService.getSignedUrl('documentos', inscricao.documentoIdentidadeUrl, 3600);
                 } catch (e) {
                     // Falha silenciosa
                 }
@@ -88,6 +104,12 @@ export class InscricaoService {
         inscricao.fotoAtletaUrl = dto.fotoAtletaUrl;
         inscricao.fotosAtletas = dto.fotosAtletas;
         inscricao.fotoModo = dto.fotoModo;
+        inscricao.laudoMedicoUrl = dto.laudoMedicoUrl;
+        inscricao.documentoIdentidadeUrl = dto.documentoIdentidadeUrl;
+        inscricao.termoAceito = dto.termoAceito;
+        if (dto.termoAceito) inscricao.termoAceitoEm = new Date();
+        if (dto.laudoMedicoUrl) inscricao.laudoMedicoUpdatedAt = new Date();
+        if (dto.documentoIdentidadeUrl) inscricao.documentoIdentidadeUpdatedAt = new Date();
         inscricao.observacao = dto.observacao;
 
         // ── Precificação direta (do Campeonato) ──
@@ -138,6 +160,12 @@ export class InscricaoService {
         inscricao.fotoAtletaUrl = dto.fotoAtletaUrl;
         inscricao.fotosAtletas = dto.fotosAtletas;
         inscricao.fotoModo = dto.fotoModo;
+        inscricao.laudoMedicoUrl = dto.laudoMedicoUrl;
+        inscricao.documentoIdentidadeUrl = dto.documentoIdentidadeUrl;
+        inscricao.termoAceito = dto.termoAceito;
+        if (dto.termoAceito) inscricao.termoAceitoEm = new Date();
+        if (dto.laudoMedicoUrl) inscricao.laudoMedicoUpdatedAt = new Date();
+        if (dto.documentoIdentidadeUrl) inscricao.documentoIdentidadeUpdatedAt = new Date();
         inscricao.observacao = dto.observacao;
 
         // ── Precificação direta (do Campeonato) ──
@@ -344,6 +372,19 @@ export class InscricaoService {
 
     async aprovar(id: string, observacoesAdmin?: string): Promise<Inscricao> {
         const inscricao = await this.findById(id);
+
+        // ── Validação: documentos obrigatórios ──
+        const docsPendentes: string[] = [];
+        if (!inscricao.laudoMedicoUrl) docsPendentes.push('Laudo médico');
+        if (!inscricao.documentoIdentidadeUrl) docsPendentes.push('Documento de identidade');
+        if (!inscricao.termoAceito) docsPendentes.push('Aceite do termo de responsabilidade');
+
+        if (docsPendentes.length > 0) {
+            throw new BadRequestException(
+                `Não é possível aprovar: documentos pendentes — ${docsPendentes.join(', ')}`,
+            );
+        }
+
         inscricao.status = StatusInscricao.APPROVED;
         inscricao.paymentStatus = StatusPagamento.CONFIRMED;
         if (observacoesAdmin) inscricao.observacoesAdmin = observacoesAdmin;
@@ -360,6 +401,58 @@ export class InscricaoService {
         return inscricao;
     }
 
+    // ── Upload de documentos obrigatórios ──
+
+    async enviarLaudoMedico(id: string, usuarioId: string, laudoMedicoUrl: string): Promise<Inscricao> {
+        const inscricao = await this.inscricaoRepo.findOne({
+            id,
+            usuario: { id: usuarioId },
+            isDeleted: false,
+        });
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+
+        inscricao.laudoMedicoUrl = laudoMedicoUrl;
+        inscricao.laudoMedicoUpdatedAt = new Date();
+        await this.em.flush();
+        return inscricao;
+    }
+
+    async enviarDocumentoIdentidade(id: string, usuarioId: string, documentoIdentidadeUrl: string): Promise<Inscricao> {
+        const inscricao = await this.inscricaoRepo.findOne({
+            id,
+            usuario: { id: usuarioId },
+            isDeleted: false,
+        });
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+
+        inscricao.documentoIdentidadeUrl = documentoIdentidadeUrl;
+        inscricao.documentoIdentidadeUpdatedAt = new Date();
+        await this.em.flush();
+        return inscricao;
+    }
+
+    async enviarLaudoMedicoPublic(id: string, laudoMedicoUrl: string): Promise<Inscricao> {
+        const inscricao = await this.inscricaoRepo.findOne({ id, isDeleted: false });
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+
+        inscricao.laudoMedicoUrl = laudoMedicoUrl;
+        inscricao.laudoMedicoUpdatedAt = new Date();
+        await this.em.flush();
+        return inscricao;
+    }
+
+    async enviarDocumentoIdentidadePublic(id: string, documentoIdentidadeUrl: string): Promise<Inscricao> {
+        const inscricao = await this.inscricaoRepo.findOne({ id, isDeleted: false });
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+
+        inscricao.documentoIdentidadeUrl = documentoIdentidadeUrl;
+        inscricao.documentoIdentidadeUpdatedAt = new Date();
+        await this.em.flush();
+        return inscricao;
+    }
+
+    // ── Stats ─────────────────────────────────
+
     async statsByCampeonato(campeonatoId: string) {
         const inscricoes = await this.inscricaoRepo.findAll({
             where: { campeonato: { id: campeonatoId }, isDeleted: false },
@@ -373,14 +466,23 @@ export class InscricaoService {
             rejected: 0,
         };
         const porCategoria: Record<string, number> = {};
+        let docsCompletos = 0;
+        let docsPendentes = 0;
 
         for (const i of inscricoes) {
             if (i.status in counters) counters[i.status]++;
             if (i.categoria) {
                 porCategoria[i.categoria] = (porCategoria[i.categoria] || 0) + 1;
             }
+            // Contagem de documentos
+            const todosDocsSent = !!(i.laudoMedicoUrl && i.documentoIdentidadeUrl && i.termoAceito);
+            if (todosDocsSent) {
+                docsCompletos++;
+            } else {
+                docsPendentes++;
+            }
         }
 
-        return { total: inscricoes.length, ...counters, porCategoria };
+        return { total: inscricoes.length, ...counters, porCategoria, docsCompletos, docsPendentes };
     }
 }

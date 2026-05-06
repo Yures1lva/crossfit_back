@@ -143,6 +143,29 @@
 
 ---
 
+## Módulo 2.8 — Documentos Obrigatórios & Termos de Inscrição ✅
+> Validação documental antes da aprovação de atletas. Inscrição só pode ser aprovada com todos os documentos + termos aceitos.
+
+### 2.8.1 — Entidades Atualizadas
+- [x] **Inscricao** — `laudoMedicoUrl`, `laudoMedicoUpdatedAt`, `documentoIdentidadeUrl`, `documentoIdentidadeUpdatedAt`, `termoAceito`, `termoAceitoEm`
+- [x] **Campeonato** — `regulamentoTipo` ('texto'|'pdf'), `regulamentoPdfUrl`, `termoResponsabilidadePdfUrl`, `termoUsoImagemPdfUrl`
+- [x] DTOs atualizados (Create + Response para ambas entidades)
+- [x] Schema sync automático
+
+### 2.8.2 — Endpoints
+- [x] `PATCH /inscricoes/:id/laudo-medico` — upload de laudo (autenticado)
+- [x] `PATCH /inscricoes/:id/documento-identidade` — upload de documento (autenticado)
+- [x] `PATCH /inscricoes/public/:id/laudo-medico` — upload público de laudo
+- [x] `PATCH /inscricoes/public/:id/documento-identidade` — upload público de documento
+
+### 2.8.3 — Regras de Negócio
+- [x] `aprovar()` bloqueado se faltam docs ou termos (BadRequestException com lista de pendentes)
+- [x] `statsByCampeonato()` retorna `docsCompletos` e `docsPendentes`
+- [x] `getConfiguracao()` inclui URLs de regulamento e termos
+- [x] `documentos` adicionado aos subfolders públicos permitidos no UploadController
+
+---
+
 ## Próximos Passos (UX Inscrição & Infraestrutura)
 - [x] Mostrar o preço na etapa 2 (seleção de modalidade) do formulário de inscrição
 - [x] Mostrar o preço/resumo na etapa 3 (hora de pagar) no formulário de inscrição

@@ -45,6 +45,26 @@ export class CreateCampeonatoDto {
 
     @ApiPropertyOptional()
     @IsOptional()
+    @IsString()
+    regulamentoTipo?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    regulamentoPdfUrl?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    termoResponsabilidadePdfUrl?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    termoUsoImagemPdfUrl?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
     @IsObject()
     lpConfig?: {
         corPrimaria?: string;

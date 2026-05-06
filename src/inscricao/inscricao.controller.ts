@@ -31,6 +31,24 @@ export class InscricaoController {
         return new ResponseInscricaoDto(inscricao);
     }
 
+    @Patch('public/:id/laudo-medico')
+    async enviarLaudoMedicoPublic(
+        @Param('id') id: string,
+        @Body('laudoMedicoUrl') laudoMedicoUrl: string,
+    ) {
+        const inscricao = await this.inscricaoService.enviarLaudoMedicoPublic(id, laudoMedicoUrl);
+        return new ResponseInscricaoDto(inscricao);
+    }
+
+    @Patch('public/:id/documento-identidade')
+    async enviarDocumentoIdentidadePublic(
+        @Param('id') id: string,
+        @Body('documentoIdentidadeUrl') documentoIdentidadeUrl: string,
+    ) {
+        const inscricao = await this.inscricaoService.enviarDocumentoIdentidadePublic(id, documentoIdentidadeUrl);
+        return new ResponseInscricaoDto(inscricao);
+    }
+
     // ── Atleta ────────────────────────────────
 
     @ApiBearerAuth('JWT-auth')
@@ -95,6 +113,38 @@ export class InscricaoController {
             id,
             req.usuario.sub,
             parceiros,
+        );
+        return new ResponseInscricaoDto(inscricao);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard)
+    @Patch(':id/laudo-medico')
+    async enviarLaudoMedico(
+        @Param('id') id: string,
+        @Body('laudoMedicoUrl') laudoMedicoUrl: string,
+        @Request() req: any,
+    ) {
+        const inscricao = await this.inscricaoService.enviarLaudoMedico(
+            id,
+            req.usuario.sub,
+            laudoMedicoUrl,
+        );
+        return new ResponseInscricaoDto(inscricao);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard)
+    @Patch(':id/documento-identidade')
+    async enviarDocumentoIdentidade(
+        @Param('id') id: string,
+        @Body('documentoIdentidadeUrl') documentoIdentidadeUrl: string,
+        @Request() req: any,
+    ) {
+        const inscricao = await this.inscricaoService.enviarDocumentoIdentidade(
+            id,
+            req.usuario.sub,
+            documentoIdentidadeUrl,
         );
         return new ResponseInscricaoDto(inscricao);
     }

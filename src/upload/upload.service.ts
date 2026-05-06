@@ -24,7 +24,7 @@ export class UploadService {
 
         const url = await this.storage.upload(subfolder, filename, file.buffer, file.mimetype);
 
-        if (subfolder === 'comprovantes') {
+        if (subfolder === 'comprovantes' || subfolder === 'documentos') {
             return filename;
         }
 

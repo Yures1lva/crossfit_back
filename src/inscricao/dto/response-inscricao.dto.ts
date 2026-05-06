@@ -20,6 +20,12 @@ export class ResponseInscricaoDto {
     fotosUpdateCount?: number;
     observacao?: string;
     observacoesAdmin?: string;
+    laudoMedicoUrl?: string;
+    laudoMedicoUpdatedAt?: Date;
+    documentoIdentidadeUrl?: string;
+    documentoIdentidadeUpdatedAt?: Date;
+    termoAceito: boolean;
+    termoAceitoEm?: Date;
     valorPago?: number;
     loteNome?: string;
     createdAt: Date;
@@ -48,6 +54,12 @@ export class ResponseInscricaoDto {
         this.fotosUpdateCount = entity.fotosUpdateCount ?? 0;
         this.observacao = entity.observacao;
         this.observacoesAdmin = entity.observacoesAdmin;
+        this.laudoMedicoUrl = entity.laudoMedicoUrl;
+        this.laudoMedicoUpdatedAt = entity.laudoMedicoUpdatedAt;
+        this.documentoIdentidadeUrl = entity.documentoIdentidadeUrl;
+        this.documentoIdentidadeUpdatedAt = entity.documentoIdentidadeUpdatedAt;
+        this.termoAceito = entity.termoAceito ?? false;
+        this.termoAceitoEm = entity.termoAceitoEm;
         this.valorPago = entity.valorPago;
         this.loteNome = entity.loteNome;
         this.createdAt = entity.createdAt;

@@ -7,6 +7,10 @@ export class ResponseCampeonatoDto {
     descricao?: string;
     bannerUrl?: string;
     regulamento?: string;
+    regulamentoTipo?: string;
+    regulamentoPdfUrl?: string;
+    termoResponsabilidadePdfUrl?: string;
+    termoUsoImagemPdfUrl?: string;
     lpConfig?: Record<string, any>;
     modalidades?: ModalidadeConfig[];
     categorias?: string[];
@@ -32,6 +36,10 @@ export class ResponseCampeonatoDto {
         this.descricao = entity.descricao;
         this.bannerUrl = entity.bannerUrl;
         this.regulamento = entity.regulamento;
+        this.regulamentoTipo = entity.regulamentoTipo;
+        this.regulamentoPdfUrl = entity.regulamentoPdfUrl;
+        this.termoResponsabilidadePdfUrl = entity.termoResponsabilidadePdfUrl;
+        this.termoUsoImagemPdfUrl = entity.termoUsoImagemPdfUrl;
         this.lpConfig = entity.lpConfig;
         this.modalidades = entity.modalidades;
         this.categorias = entity.categorias;

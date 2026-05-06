@@ -122,6 +122,11 @@ export class CampeonatoService {
             valorInscricao: camp.valorInscricao,
             chavePix: camp.chavePix,
             whatsappNumero: camp.whatsappNumero,
+            regulamento: camp.regulamento,
+            regulamentoTipo: camp.regulamentoTipo,
+            regulamentoPdfUrl: camp.regulamentoPdfUrl,
+            termoResponsabilidadePdfUrl: camp.termoResponsabilidadePdfUrl,
+            termoUsoImagemPdfUrl: camp.termoUsoImagemPdfUrl,
         };
     }
 }
