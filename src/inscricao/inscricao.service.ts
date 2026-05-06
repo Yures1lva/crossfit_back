@@ -451,6 +451,21 @@ export class InscricaoService {
         return inscricao;
     }
 
+    async aceitarTermos(id: string, usuarioId: string): Promise<Inscricao> {
+        const inscricao = await this.inscricaoRepo.findOne({
+            id,
+            usuario: { id: usuarioId },
+            isDeleted: false,
+        });
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+        if (inscricao.termoAceito) throw new BadRequestException('Termos já foram aceitos');
+
+        inscricao.termoAceito = true;
+        inscricao.termoAceitoEm = new Date();
+        await this.em.flush();
+        return inscricao;
+    }
+
     // ── Stats ─────────────────────────────────
 
     async statsByCampeonato(campeonatoId: string) {

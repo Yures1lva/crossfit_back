@@ -151,6 +151,17 @@ export class InscricaoController {
 
     @ApiBearerAuth('JWT-auth')
     @UseGuards(AuthGuard)
+    @Patch(':id/aceitar-termos')
+    async aceitarTermos(
+        @Param('id') id: string,
+        @Request() req: any,
+    ) {
+        const inscricao = await this.inscricaoService.aceitarTermos(id, req.usuario.sub);
+        return new ResponseInscricaoDto(inscricao);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard)
     @Delete(':id')
     async cancelar(@Param('id') id: string, @Request() req: any) {
         await this.inscricaoService.cancelarByAtleta(id, req.usuario.sub);
