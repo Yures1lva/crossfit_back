@@ -49,6 +49,15 @@ export class InscricaoController {
         return new ResponseInscricaoDto(inscricao);
     }
 
+    @Patch('public/:id/termo')
+    async enviarTermoPublic(
+        @Param('id') id: string,
+        @Body('termoUrl') termoUrl: string,
+    ) {
+        const inscricao = await this.inscricaoService.enviarTermoPublic(id, termoUrl);
+        return new ResponseInscricaoDto(inscricao);
+    }
+
     // ── Atleta ────────────────────────────────
 
     @ApiBearerAuth('JWT-auth')
@@ -151,12 +160,13 @@ export class InscricaoController {
 
     @ApiBearerAuth('JWT-auth')
     @UseGuards(AuthGuard)
-    @Patch(':id/aceitar-termos')
-    async aceitarTermos(
+    @Patch(':id/termo')
+    async enviarTermo(
         @Param('id') id: string,
+        @Body('termoUrl') termoUrl: string,
         @Request() req: any,
     ) {
-        const inscricao = await this.inscricaoService.aceitarTermos(id, req.usuario.sub);
+        const inscricao = await this.inscricaoService.enviarTermo(id, req.usuario.sub, termoUrl);
         return new ResponseInscricaoDto(inscricao);
     }
 

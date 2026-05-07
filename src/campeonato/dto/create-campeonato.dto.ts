@@ -56,11 +56,6 @@ export class CreateCampeonatoDto {
     @ApiPropertyOptional()
     @IsOptional()
     @IsString()
-    termoResponsabilidadePdfUrl?: string;
-
-    @ApiPropertyOptional()
-    @IsOptional()
-    @IsString()
     termoUsoImagemPdfUrl?: string;
 
     @ApiPropertyOptional()
@@ -152,6 +147,15 @@ export class CreateCampeonatoDto {
     @IsOptional()
     @IsDateString()
     inscricaoFim?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsDateString()
+    docsDataLimite?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    permitirLaudoNoDia?: boolean;
 
     @ApiPropertyOptional()
     @IsOptional()

@@ -24,8 +24,8 @@ export class ResponseInscricaoDto {
     laudoMedicoUpdatedAt?: Date;
     documentoIdentidadeUrl?: string;
     documentoIdentidadeUpdatedAt?: Date;
-    termoAceito: boolean;
-    termoAceitoEm?: Date;
+    termoUrl?: string;
+    termoUpdatedAt?: Date;
     valorPago?: number;
     loteNome?: string;
     createdAt: Date;
@@ -58,8 +58,8 @@ export class ResponseInscricaoDto {
         this.laudoMedicoUpdatedAt = entity.laudoMedicoUpdatedAt;
         this.documentoIdentidadeUrl = entity.documentoIdentidadeUrl;
         this.documentoIdentidadeUpdatedAt = entity.documentoIdentidadeUpdatedAt;
-        this.termoAceito = entity.termoAceito ?? false;
-        this.termoAceitoEm = entity.termoAceitoEm;
+        this.termoUrl = entity.termoUrl;
+        this.termoUpdatedAt = entity.termoUpdatedAt;
         this.valorPago = entity.valorPago;
         this.loteNome = entity.loteNome;
         this.createdAt = entity.createdAt;

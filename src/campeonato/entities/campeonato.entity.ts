@@ -55,9 +55,6 @@ export class Campeonato {
     regulamentoPdfUrl?: string;
 
     @Property({ nullable: true })
-    termoResponsabilidadePdfUrl?: string;
-
-    @Property({ nullable: true })
     termoUsoImagemPdfUrl?: string;
 
     @Property({ nullable: true, type: 'json' })
@@ -115,6 +112,12 @@ export class Campeonato {
 
     @Property({ nullable: true, type: 'date' })
     inscricaoFim?: Date;
+
+    @Property({ nullable: true, type: 'date' })
+    docsDataLimite?: Date;
+
+    @Property({ default: false })
+    permitirLaudoNoDia: boolean = false;
 
     // ── Status ───────────────────────────────
     @Enum(() => StatusCampeonato)

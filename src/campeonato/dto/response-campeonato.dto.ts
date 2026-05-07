@@ -9,7 +9,6 @@ export class ResponseCampeonatoDto {
     regulamento?: string;
     regulamentoTipo?: string;
     regulamentoPdfUrl?: string;
-    termoResponsabilidadePdfUrl?: string;
     termoUsoImagemPdfUrl?: string;
     lpConfig?: Record<string, any>;
     modalidades?: ModalidadeConfig[];
@@ -38,7 +37,6 @@ export class ResponseCampeonatoDto {
         this.regulamento = entity.regulamento;
         this.regulamentoTipo = entity.regulamentoTipo;
         this.regulamentoPdfUrl = entity.regulamentoPdfUrl;
-        this.termoResponsabilidadePdfUrl = entity.termoResponsabilidadePdfUrl;
         this.termoUsoImagemPdfUrl = entity.termoUsoImagemPdfUrl;
         this.lpConfig = entity.lpConfig;
         this.modalidades = entity.modalidades;

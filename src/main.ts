@@ -33,9 +33,15 @@ async function bootstrap() {
 
   // ── CORS
   const frontendUrls = process.env.FRONTEND_URL
-      ? process.env.FRONTEND_URL.split(',').map(u => u.trim())
-      : [];
-  const allowedOrigins = [...frontendUrls, 'http://localhost:3000'];
+    ? process.env.FRONTEND_URL.split(',').map(u => u.trim())
+    : [];
+  const allowedOrigins = [
+    ...frontendUrls,
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:3003',
+  ];
 
   app.enableCors({
     origin: (origin, callback) => {
@@ -44,7 +50,7 @@ async function bootstrap() {
 
       // Match exato ou qualquer subdomínio de sooacosports.com.br
       const isAllowed = allowedOrigins.includes(origin)
-          || /^https:\/\/([a-z0-9-]+\.)*sooacosports\.com\.br$/.test(origin);
+        || /^https:\/\/([a-z0-9-]+\.)*sooacosports\.com\.br$/.test(origin);
 
       if (isAllowed) {
         callback(null, true);

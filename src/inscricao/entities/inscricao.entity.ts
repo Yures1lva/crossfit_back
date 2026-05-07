@@ -106,11 +106,11 @@ export class Inscricao {
     @Property({ nullable: true })
     documentoIdentidadeUpdatedAt?: Date;
 
-    @Property({ default: false })
-    termoAceito: boolean = false;
+    @Property({ nullable: true })
+    termoUrl?: string;
 
     @Property({ nullable: true })
-    termoAceitoEm?: Date;
+    termoUpdatedAt?: Date;
 
     // ── Admin ────────────────────────────────
     @Property({ nullable: true, type: 'text' })

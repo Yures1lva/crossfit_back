@@ -106,8 +106,8 @@ export class InscricaoService {
         inscricao.fotoModo = dto.fotoModo;
         inscricao.laudoMedicoUrl = dto.laudoMedicoUrl;
         inscricao.documentoIdentidadeUrl = dto.documentoIdentidadeUrl;
-        inscricao.termoAceito = dto.termoAceito;
-        if (dto.termoAceito) inscricao.termoAceitoEm = new Date();
+        inscricao.termoUrl = dto.termoUrl;
+        if (dto.termoUrl) inscricao.termoUpdatedAt = new Date();
         if (dto.laudoMedicoUrl) inscricao.laudoMedicoUpdatedAt = new Date();
         if (dto.documentoIdentidadeUrl) inscricao.documentoIdentidadeUpdatedAt = new Date();
         inscricao.observacao = dto.observacao;
@@ -162,8 +162,8 @@ export class InscricaoService {
         inscricao.fotoModo = dto.fotoModo;
         inscricao.laudoMedicoUrl = dto.laudoMedicoUrl;
         inscricao.documentoIdentidadeUrl = dto.documentoIdentidadeUrl;
-        inscricao.termoAceito = dto.termoAceito;
-        if (dto.termoAceito) inscricao.termoAceitoEm = new Date();
+        inscricao.termoUrl = dto.termoUrl;
+        if (dto.termoUrl) inscricao.termoUpdatedAt = new Date();
         if (dto.laudoMedicoUrl) inscricao.laudoMedicoUpdatedAt = new Date();
         if (dto.documentoIdentidadeUrl) inscricao.documentoIdentidadeUpdatedAt = new Date();
         inscricao.observacao = dto.observacao;
@@ -375,13 +375,30 @@ export class InscricaoService {
 
         // ── Validação: documentos obrigatórios ──
         const docsPendentes: string[] = [];
-        if (!inscricao.laudoMedicoUrl) docsPendentes.push('Laudo médico');
-        if (!inscricao.documentoIdentidadeUrl) docsPendentes.push('Documento de identidade');
-        if (!inscricao.termoAceito) docsPendentes.push('Aceite do termo de responsabilidade');
+        const camp = inscricao.campeonato;
+        
+        const now = new Date();
+        const isPastDeadline = camp?.docsDataLimite ? now > camp.docsDataLimite : false;
+
+        if (!inscricao.laudoMedicoUrl) {
+            if (isPastDeadline && !camp?.permitirLaudoNoDia) {
+                docsPendentes.push('Laudo médico');
+            }
+        }
+        if (!inscricao.documentoIdentidadeUrl) {
+            if (isPastDeadline) {
+                docsPendentes.push('Documento de identidade');
+            }
+        }
+        if (!inscricao.termoUrl) {
+            if (isPastDeadline) {
+                docsPendentes.push('Termo de uso de imagem');
+            }
+        }
 
         if (docsPendentes.length > 0) {
             throw new BadRequestException(
-                `Não é possível aprovar: documentos pendentes — ${docsPendentes.join(', ')}`,
+                `Não é possível aprovar: o prazo limite de documentos expirou e os seguintes estão pendentes — ${docsPendentes.join(', ')}`,
             );
         }
 
@@ -451,17 +468,26 @@ export class InscricaoService {
         return inscricao;
     }
 
-    async aceitarTermos(id: string, usuarioId: string): Promise<Inscricao> {
+    async enviarTermo(id: string, usuarioId: string, termoUrl: string): Promise<Inscricao> {
         const inscricao = await this.inscricaoRepo.findOne({
             id,
             usuario: { id: usuarioId },
             isDeleted: false,
         });
         if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
-        if (inscricao.termoAceito) throw new BadRequestException('Termos já foram aceitos');
 
-        inscricao.termoAceito = true;
-        inscricao.termoAceitoEm = new Date();
+        inscricao.termoUrl = termoUrl;
+        inscricao.termoUpdatedAt = new Date();
+        await this.em.flush();
+        return inscricao;
+    }
+
+    async enviarTermoPublic(id: string, termoUrl: string): Promise<Inscricao> {
+        const inscricao = await this.inscricaoRepo.findOne({ id, isDeleted: false });
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+
+        inscricao.termoUrl = termoUrl;
+        inscricao.termoUpdatedAt = new Date();
         await this.em.flush();
         return inscricao;
     }
@@ -490,7 +516,7 @@ export class InscricaoService {
                 porCategoria[i.categoria] = (porCategoria[i.categoria] || 0) + 1;
             }
             // Contagem de documentos
-            const todosDocsSent = !!(i.laudoMedicoUrl && i.documentoIdentidadeUrl && i.termoAceito);
+            const todosDocsSent = !!(i.laudoMedicoUrl && i.documentoIdentidadeUrl && i.termoUrl);
             if (todosDocsSent) {
                 docsCompletos++;
             } else {

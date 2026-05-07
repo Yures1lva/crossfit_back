@@ -125,7 +125,7 @@ export class CampeonatoService {
             regulamento: camp.regulamento,
             regulamentoTipo: camp.regulamentoTipo,
             regulamentoPdfUrl: camp.regulamentoPdfUrl,
-            termoResponsabilidadePdfUrl: camp.termoResponsabilidadePdfUrl,
+
             termoUsoImagemPdfUrl: camp.termoUsoImagemPdfUrl,
         };
     }

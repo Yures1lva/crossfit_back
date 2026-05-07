@@ -95,10 +95,10 @@ export class CreateInscricaoDto {
     @IsString()
     documentoIdentidadeUrl?: string;
 
-    @ApiProperty()
-    @IsNotEmpty()
-    @IsBoolean()
-    termoAceito!: boolean;
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    termoUrl?: string;
 
     @ApiPropertyOptional()
     @IsOptional()

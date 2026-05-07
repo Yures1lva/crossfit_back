@@ -182,7 +182,9 @@
 - [x] Tornar o campo CPF obrigatório na criação de contas (`/auth/cadastro`)
 - [x] Implementar validador local de CPF no frontend
 - [x] Planejar arquitetura de storage (preparar para migração/uso do Supabase para banco e storage no futuro)
-
+- [x] Inscrição: Tornar o envio do comprovante de pagamento obrigatório no ato da inscrição
+- [x] Campeonato (Configuração): Adicionar campo "Data limite para envio de documentos" e opção "Permitir entregar laudo médico no dia do evento"
+- [x] ADM (Aprovação): Permitir aprovação de inscrição sem laudo médico, baseando-se na data limite do campeonato ou na opção de entregar no dia do evento
 ---
 
 ## Módulo 3 — Configuração da Landing Page (futuro)
