@@ -186,16 +186,38 @@ export class InscricaoController {
     @Get('campeonato/:campeonatoId')
     @ApiQuery({ name: 'status', required: false })
     @ApiQuery({ name: 'categoria', required: false })
+    @ApiQuery({ name: 'modalidade', required: false })
+    @ApiQuery({ name: 'sexo', required: false })
+    @ApiQuery({ name: 'docs', required: false })
+    @ApiQuery({ name: 'search', required: false })
+    @ApiQuery({ name: 'page', required: false, type: Number })
+    @ApiQuery({ name: 'limit', required: false, type: Number })
     async findByCampeonato(
         @Param('campeonatoId') campeonatoId: string,
         @Query('status') status?: string,
         @Query('categoria') categoria?: string,
+        @Query('modalidade') modalidade?: string,
+        @Query('sexo') sexo?: string,
+        @Query('docs') docs?: string,
+        @Query('search') search?: string,
+        @Query('page') page?: string,
+        @Query('limit') limit?: string,
     ) {
-        const inscricoes = await this.inscricaoService.findByCampeonato(campeonatoId, {
+        const paginatedResult = await this.inscricaoService.findByCampeonato(campeonatoId, {
             status,
             categoria,
+            modalidade,
+            sexo,
+            docs,
+            search,
+            page: page ? parseInt(page) : 1,
+            limit: limit ? parseInt(limit) : 10,
         });
-        return inscricoes.map((i) => new ResponseInscricaoDto(i));
+
+        return {
+            ...paginatedResult,
+            data: paginatedResult.data.map((i) => new ResponseInscricaoDto(i)),
+        };
     }
 
     @ApiBearerAuth('JWT-auth')

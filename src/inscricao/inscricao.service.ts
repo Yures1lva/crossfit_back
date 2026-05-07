@@ -345,19 +345,74 @@ export class InscricaoService {
 
     async findByCampeonato(
         campeonatoId: string,
-        filtros?: { status?: string; categoria?: string },
-    ): Promise<Inscricao[]> {
+        filtros?: {
+            status?: string;
+            categoria?: string;
+            modalidade?: string;
+            sexo?: string;
+            docs?: string;
+            search?: string;
+            page?: number;
+            limit?: number;
+        },
+    ): Promise<{ data: Inscricao[]; total: number; page: number; limit: number; totalPages: number }> {
         const where: any = { campeonato: { id: campeonatoId }, isDeleted: false };
+        
         if (filtros?.status) where.status = filtros.status;
         if (filtros?.categoria) where.categoria = filtros.categoria;
+        if (filtros?.modalidade) where.modalidade = filtros.modalidade;
+        
+        if (filtros?.sexo) {
+            // Supondo que a categoria inclua a palavra do sexo
+            where.categoria = { $ilike: `%${filtros.sexo}%` };
+        }
+        
+        if (filtros?.search) {
+            where.$or = [
+                { nomeAtleta: { $ilike: `%${filtros.search}%` } },
+                { email: { $ilike: `%${filtros.search}%` } },
+                { cpf: { $ilike: `%${filtros.search}%` } },
+            ];
+        }
 
-        const inscricoes = await this.inscricaoRepo.findAll({
+        if (filtros?.docs) {
+            // docs === 'ok' (all docs present) or docs === 'pendente'
+            if (filtros.docs === 'ok') {
+                where.laudoMedicoUrl = { $ne: null };
+                where.documentoIdentidadeUrl = { $ne: null };
+                where.termoUrl = { $ne: null };
+            } else if (filtros.docs === 'pendente') {
+                where.$or = [
+                    { laudoMedicoUrl: null },
+                    { documentoIdentidadeUrl: null },
+                    { termoUrl: null },
+                ];
+            }
+        }
+
+        const page = filtros?.page || 1;
+        const limit = filtros?.limit || 10;
+        const offset = (page - 1) * limit;
+
+        const [inscricoes, total] = await this.inscricaoRepo.findAndCount(
             where,
-            populate: ['usuario', 'campeonato'],
-            orderBy: { createdAt: 'DESC' },
-        });
+            {
+                populate: ['usuario', 'campeonato'],
+                orderBy: { createdAt: 'DESC' },
+                limit,
+                offset,
+            }
+        );
+
         await this.mapSignedUrls(inscricoes);
-        return inscricoes;
+
+        return {
+            data: inscricoes,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        };
     }
 
     async findById(id: string): Promise<Inscricao> {
