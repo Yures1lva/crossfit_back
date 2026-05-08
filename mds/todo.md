@@ -185,6 +185,35 @@
 - [x] Inscrição: Tornar o envio do comprovante de pagamento obrigatório no ato da inscrição
 - [x] Campeonato (Configuração): Adicionar campo "Data limite para envio de documentos" e opção "Permitir entregar laudo médico no dia do evento"
 - [x] ADM (Aprovação): Permitir aprovação de inscrição sem laudo médico, baseando-se na data limite do campeonato ou na opção de entregar no dia do evento
+
+---
+
+## Módulo 2.9 — Documentos Obrigatórios para Parceiros
+> Ao cadastrar parceiros em equipes (Dupla, Trio), cada parceiro deve enviar os mesmos documentos exigidos do atleta principal.
+
+### 2.9.1 — Backend
+- [ ] **Entidade `Inscricao`** — Expandir campo `parceiros` (JSON) para suportar URLs de documentos por parceiro:
+  ```
+  parceiros: [{
+    nome, cpf, tamanhoCamisa,
+    laudoMedicoUrl?,
+    documentoIdentidadeUrl?,
+    termoUrl?
+  }]
+  ```
+- [ ] **Endpoints** — Criar rotas de upload por parceiro:
+  - `PATCH /inscricoes/:id/parceiros/:idx/laudo-medico`
+  - `PATCH /inscricoes/:id/parceiros/:idx/documento-identidade`
+  - `PATCH /inscricoes/:id/parceiros/:idx/termo`
+- [ ] **Regras de Negócio** — Validar documentos de TODOS os parceiros antes de aprovar inscrição
+- [ ] **Stats** — Incluir contagem de docs pendentes de parceiros no `statsByCampeonato()`
+
+### 2.9.2 — Frontend
+- [ ] Exibir seção de documentos por parceiro na tela de detalhes da inscrição (dashboard do atleta)
+- [ ] Upload individual de laudo, documento e termo para cada parceiro
+- [ ] Indicadores visuais de status dos documentos de cada parceiro (✅/❌)
+- [ ] Admin: Visualizar documentos dos parceiros no detalhe da inscrição
+
 ---
 
 ## Módulo 3 — Configuração da Landing Page (futuro)

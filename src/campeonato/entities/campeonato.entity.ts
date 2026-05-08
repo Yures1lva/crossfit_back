@@ -24,6 +24,7 @@ export interface ModalidadeConfig {
     nome: string;          // Ex: "Individual", "Dupla", "Trio"
     qtdAtletas: number;    // 1, 2, 3...
     categorias: string[];  // Ex: ["Iniciante Masculino", "RX Feminino", "Master 35+"]
+    maxInscritosPorCategoria?: Record<string, number>; // Ex: { "Iniciante Masculino": 30 }
 }
 
 @Entity()

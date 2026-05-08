@@ -25,6 +25,8 @@ export class ResponseCampeonatoDto {
     dataFim?: Date;
     inscricaoInicio?: Date;
     inscricaoFim?: Date;
+    docsDataLimite?: Date;
+    permitirLaudoNoDia?: boolean;
     maxInscritos?: number;
     createdAt: Date;
 
@@ -53,6 +55,8 @@ export class ResponseCampeonatoDto {
         this.dataFim = entity.dataFim;
         this.inscricaoInicio = entity.inscricaoInicio;
         this.inscricaoFim = entity.inscricaoFim;
+        this.docsDataLimite = entity.docsDataLimite;
+        this.permitirLaudoNoDia = entity.permitirLaudoNoDia ?? false;
         this.maxInscritos = entity.maxInscritos;
         this.createdAt = entity.createdAt;
     }

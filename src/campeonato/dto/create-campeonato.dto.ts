@@ -15,6 +15,10 @@ class ModalidadeConfigDto {
     @IsArray()
     @IsString({ each: true })
     categorias?: string[];
+
+    @IsOptional()
+    @IsObject()
+    maxInscritosPorCategoria?: Record<string, number>;
 }
 
 export class CreateCampeonatoDto {
