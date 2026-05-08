@@ -34,6 +34,7 @@ export class UsuarioService {
         usuario.email = dto.email;
         usuario.password = dto.password;
         if (dto.cpf) usuario.cpf = dto.cpf;
+        if (dto.telefone) usuario.telefone = dto.telefone;
         this.em.persist(usuario);
         await this.em.flush();
         return usuario;
@@ -46,7 +47,7 @@ export class UsuarioService {
         await this.em.flush();
     }
 
-    async updateProfile(id: string, data: { nome?: string; email?: string; currentPassword: string; password?: string }): Promise<Usuario> {
+    async updateProfile(id: string, data: { nome?: string; email?: string; telefone?: string; currentPassword: string; password?: string }): Promise<Usuario> {
         const usuario = await this.findOne(id);
         if (!usuario) throw new NotFoundException('Usuário não encontrado');
 
@@ -62,6 +63,7 @@ export class UsuarioService {
 
         if (data.nome) usuario.nome = data.nome;
         if (data.email) usuario.email = data.email;
+        if (data.telefone !== undefined) usuario.telefone = data.telefone;
 
         if (data.password) {
             usuario.password = await bcrypt.hash(data.password, 10);
@@ -74,7 +76,7 @@ export class UsuarioService {
     async adminUpdateUser(
         targetUserId: string,
         adminUserId: string,
-        data: { nome?: string; email?: string; cpf?: string; role?: string; isDisabled?: boolean; adminPassword: string },
+        data: { nome?: string; email?: string; cpf?: string; telefone?: string; role?: string; isDisabled?: boolean; adminPassword: string },
     ): Promise<Usuario> {
         // Verifica a senha do admin
         const admin = await this.findOne(adminUserId);
@@ -93,6 +95,7 @@ export class UsuarioService {
         if (data.nome !== undefined) usuario.nome = data.nome;
         if (data.email !== undefined) usuario.email = data.email;
         if (data.cpf !== undefined) usuario.cpf = data.cpf || undefined;
+        if (data.telefone !== undefined) usuario.telefone = data.telefone || undefined;
         if (data.role !== undefined) usuario.role = data.role as any;
         if (data.isDisabled !== undefined) usuario.isDisabled = data.isDisabled;
 

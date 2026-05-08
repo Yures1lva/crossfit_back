@@ -12,6 +12,11 @@ export class UpdateProfileDto {
     @IsEmail()
     email?: string;
 
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    telefone?: string;
+
     @ApiPropertyOptional({ description: 'Senha atual — obrigatória para qualquer alteração' })
     @IsString()
     currentPassword!: string;

@@ -21,6 +21,11 @@ export class AdminUpdateUsuarioDto {
     @ApiPropertyOptional()
     @IsOptional()
     @IsString()
+    telefone?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
     @IsIn(['admin', 'organizer', 'athlete'])
     role?: 'admin' | 'organizer' | 'athlete';
 

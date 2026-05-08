@@ -15,6 +15,9 @@ export class Usuario {
   @Property({ nullable: true, index: true })
   cpf?: string;
 
+  @Property({ nullable: true })
+  telefone?: string;
+
   @Property()
   password!: string;
 

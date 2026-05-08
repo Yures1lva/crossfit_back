@@ -39,6 +39,9 @@ export class Inscricao {
     @Property()
     email!: string;
 
+    @Property({ nullable: true })
+    telefone?: string;
+
     @Property()
     nomeAtleta!: string;
 

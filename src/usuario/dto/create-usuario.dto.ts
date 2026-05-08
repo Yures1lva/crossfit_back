@@ -17,6 +17,11 @@ export class CreateUsuarioDto {
     @IsString()
     cpf?: string;
 
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    telefone?: string;
+
     @ApiProperty()
     @IsNotEmpty()
     @IsString()

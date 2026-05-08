@@ -150,6 +150,7 @@ export class InscricaoService {
         inscricao.campeonato = this.em.getReference(Campeonato, dto.campeonatoId);
         inscricao.cpf = dto.cpf;
         inscricao.email = dto.email;
+        inscricao.telefone = dto.telefone;
         inscricao.nomeAtleta = dto.nomeAtleta;
         inscricao.dadosFormulario = dto.dadosFormulario;
         inscricao.categoria = dto.categoria;

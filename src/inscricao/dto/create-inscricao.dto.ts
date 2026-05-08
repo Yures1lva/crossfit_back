@@ -35,6 +35,11 @@ export class CreateInscricaoDto {
     @ApiProperty()
     @IsNotEmpty()
     @IsString()
+    telefone!: string;
+
+    @ApiProperty()
+    @IsNotEmpty()
+    @IsString()
     nomeAtleta!: string;
 
     @ApiPropertyOptional()
