@@ -427,7 +427,11 @@ export class InscricaoService {
     }
 
     async aprovar(id: string, observacoesAdmin?: string): Promise<Inscricao> {
-        const inscricao = await this.findById(id);
+        const inscricao = await this.inscricaoRepo.findOne(
+            { id, isDeleted: false },
+            { populate: ['usuario', 'campeonato'] },
+        );
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
 
         // ── Validação: documentos obrigatórios ──
         const docsPendentes: string[] = [];
@@ -462,15 +466,21 @@ export class InscricaoService {
         inscricao.paymentStatus = StatusPagamento.CONFIRMED;
         if (observacoesAdmin) inscricao.observacoesAdmin = observacoesAdmin;
         await this.em.flush();
+        await this.mapSignedUrls(inscricao);
         return inscricao;
     }
 
     async rejeitar(id: string, observacoesAdmin?: string): Promise<Inscricao> {
-        const inscricao = await this.findById(id);
+        const inscricao = await this.inscricaoRepo.findOne(
+            { id, isDeleted: false },
+            { populate: ['usuario', 'campeonato'] },
+        );
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
         inscricao.status = StatusInscricao.REJECTED;
         inscricao.paymentStatus = StatusPagamento.REJECTED;
         if (observacoesAdmin) inscricao.observacoesAdmin = observacoesAdmin;
         await this.em.flush();
+        await this.mapSignedUrls(inscricao);
         return inscricao;
     }
 
