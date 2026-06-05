@@ -265,15 +265,6 @@ export class InscricaoController {
     @ApiBearerAuth('JWT-auth')
     @UseGuards(AuthGuard, RolesGuard)
     @Roles('admin', 'organizer')
-    @Patch(':id/reset-comprovante')
-    async resetComprovante(@Param('id') id: string) {
-        await this.inscricaoService.resetComprovanteAdmin(id);
-        return { success: true };
-    }
-
-    @ApiBearerAuth('JWT-auth')
-    @UseGuards(AuthGuard, RolesGuard)
-    @Roles('admin', 'organizer')
     @Patch(':id/parceiros-admin')
     async atualizarParceirosAdmin(
         @Param('id') id: string,

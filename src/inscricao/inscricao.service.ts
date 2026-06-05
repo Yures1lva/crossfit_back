@@ -268,20 +268,6 @@ export class InscricaoService {
         return inscricao;
     }
 
-    async resetComprovanteAdmin(id: string): Promise<void> {
-        const inscricao = await this.inscricaoRepo.findOne({ id, isDeleted: false });
-        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
-        if (inscricao.status === StatusInscricao.APPROVED) {
-            throw new BadRequestException('Não é possível resetar o comprovante de uma inscrição aprovada');
-        }
-        inscricao.comprovanteUrl = undefined;
-        inscricao.paymentStatus = StatusPagamento.PENDING;
-        inscricao.status = StatusInscricao.PENDING;
-        inscricao.comprovanteUpdateCount = 0;
-        inscricao.comprovanteUpdatedAt = undefined;
-        await this.em.flush();
-    }
-
     async enviarFotos(
         id: string,
         usuarioId: string,
