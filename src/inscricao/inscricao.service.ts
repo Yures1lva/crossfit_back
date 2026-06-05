@@ -342,6 +342,16 @@ export class InscricaoService {
         await this.em.flush();
     }
 
+    async excluirAdmin(id: string): Promise<void> {
+        const inscricao = await this.inscricaoRepo.findOne({ id, isDeleted: false });
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+        if (inscricao.status !== StatusInscricao.REJECTED) {
+            throw new BadRequestException('Só é possível excluir inscrições rejeitadas');
+        }
+        inscricao.isDeleted = true;
+        await this.em.flush();
+    }
+
     // ── Admin ─────────────────────────────────
 
     async findByCampeonato(

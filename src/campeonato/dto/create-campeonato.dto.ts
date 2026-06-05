@@ -123,6 +123,11 @@ export class CreateCampeonatoDto {
     @ApiPropertyOptional()
     @IsOptional()
     @IsString()
+    pixDescricao?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
     whatsappNumero?: string;
 
     // ── Status ──

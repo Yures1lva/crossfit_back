@@ -19,6 +19,7 @@ export class ResponseCampeonatoDto {
     loteNome?: string;
     valorInscricao?: number;
     chavePix?: string;
+    pixDescricao?: string;
     whatsappNumero?: string;
     status: string;
     dataInicio?: Date;
@@ -49,6 +50,7 @@ export class ResponseCampeonatoDto {
         this.loteNome = entity.loteNome;
         this.valorInscricao = entity.valorInscricao;
         this.chavePix = entity.chavePix;
+        this.pixDescricao = entity.pixDescricao;
         this.whatsappNumero = entity.whatsappNumero;
         this.status = entity.status;
         this.dataInicio = entity.dataInicio;

@@ -121,6 +121,7 @@ export class CampeonatoService {
             loteNome: camp.loteNome,
             valorInscricao: camp.valorInscricao,
             chavePix: camp.chavePix,
+            pixDescricao: camp.pixDescricao,
             whatsappNumero: camp.whatsappNumero,
             regulamento: camp.regulamento,
             regulamentoTipo: camp.regulamentoTipo,

@@ -183,6 +183,15 @@ export class InscricaoController {
     @ApiBearerAuth('JWT-auth')
     @UseGuards(AuthGuard, RolesGuard)
     @Roles('admin', 'organizer')
+    @Delete(':id/admin')
+    async excluirAdmin(@Param('id') id: string) {
+        await this.inscricaoService.excluirAdmin(id);
+        return { success: true };
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard, RolesGuard)
+    @Roles('admin', 'organizer')
     @Get('campeonato/:campeonatoId')
     @ApiQuery({ name: 'status', required: false })
     @ApiQuery({ name: 'categoria', required: false })

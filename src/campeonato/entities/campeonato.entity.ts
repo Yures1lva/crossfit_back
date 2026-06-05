@@ -99,6 +99,9 @@ export class Campeonato {
     chavePix?: string;
 
     @Property({ nullable: true })
+    pixDescricao?: string;
+
+    @Property({ nullable: true })
     whatsappNumero?: string;
 
     // ── Datas ────────────────────────────────
