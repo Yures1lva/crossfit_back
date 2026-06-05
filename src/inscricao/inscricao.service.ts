@@ -59,6 +59,14 @@ export class InscricaoService {
                     // Falha silenciosa
                 }
             }
+            // Termo de uso de imagem (bucket privado)
+            if (inscricao.termoUrl && !inscricao.termoUrl.startsWith('http')) {
+                try {
+                    inscricao.termoUrl = await this.uploadService.getSignedUrl('documentos', inscricao.termoUrl, 3600);
+                } catch (e) {
+                    // Falha silenciosa
+                }
+            }
             // Fotos dos atletas (bucket público — resolve URL pública)
             if (inscricao.fotosAtletas?.length) {
                 inscricao.fotosAtletas = inscricao.fotosAtletas.map((f) => {
@@ -258,6 +266,20 @@ export class InscricaoService {
 
         await this.em.flush();
         return inscricao;
+    }
+
+    async resetComprovanteAdmin(id: string): Promise<void> {
+        const inscricao = await this.inscricaoRepo.findOne({ id, isDeleted: false });
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+        if (inscricao.status === StatusInscricao.APPROVED) {
+            throw new BadRequestException('Não é possível resetar o comprovante de uma inscrição aprovada');
+        }
+        inscricao.comprovanteUrl = undefined;
+        inscricao.paymentStatus = StatusPagamento.PENDING;
+        inscricao.status = StatusInscricao.PENDING;
+        inscricao.comprovanteUpdateCount = 0;
+        inscricao.comprovanteUpdatedAt = undefined;
+        await this.em.flush();
     }
 
     async enviarFotos(
