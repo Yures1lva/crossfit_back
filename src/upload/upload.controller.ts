@@ -14,7 +14,7 @@ import { AuthGuard } from '../auth/guards/auth.guard';
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
-const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
+const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 const DOCUMENT_MIMES = [...IMAGE_MIMES, 'application/pdf'];
 const PUBLIC_SUBFOLDERS = ['atletas', 'comprovantes', 'documentos', 'regulamentos'];
 
@@ -43,7 +43,7 @@ export class UploadController {
         if (!file) throw new BadRequestException('Nenhum arquivo enviado');
         if (file.size > MAX_SIZE) throw new BadRequestException('Arquivo muito grande (máx 5MB)');
         if (!IMAGE_MIMES.includes(file.mimetype)) {
-            throw new BadRequestException('Formato inválido. Use JPG, PNG ou WebP');
+            throw new BadRequestException('Formato inválido. Use JPG, PNG, WebP ou HEIC');
         }
 
         const url = await this.uploadService.saveFile(file, subfolder);
@@ -68,7 +68,7 @@ export class UploadController {
         if (!file) throw new BadRequestException('Nenhum arquivo enviado');
         if (file.size > MAX_SIZE) throw new BadRequestException('Arquivo muito grande (máx 5MB)');
         if (!DOCUMENT_MIMES.includes(file.mimetype)) {
-            throw new BadRequestException('Formato inválido. Use JPG, PNG, WebP ou PDF');
+            throw new BadRequestException('Formato inválido. Use JPG, PNG, WebP, HEIC ou PDF');
         }
 
         const url = await this.uploadService.saveFile(file, subfolder);
@@ -96,7 +96,7 @@ export class UploadController {
         if (!file) throw new BadRequestException('Nenhum arquivo enviado');
         if (file.size > MAX_SIZE) throw new BadRequestException('Arquivo muito grande (máx 5MB)');
         if (!IMAGE_MIMES.includes(file.mimetype)) {
-            throw new BadRequestException('Formato inválido. Use JPG, PNG ou WebP');
+            throw new BadRequestException('Formato inválido. Use JPG, PNG, WebP ou HEIC');
         }
 
         const url = await this.uploadService.saveFile(file, subfolder);
@@ -122,7 +122,7 @@ export class UploadController {
         if (!file) throw new BadRequestException('Nenhum arquivo enviado');
         if (file.size > MAX_SIZE) throw new BadRequestException('Arquivo muito grande (máx 5MB)');
         if (!DOCUMENT_MIMES.includes(file.mimetype)) {
-            throw new BadRequestException('Formato inválido. Use JPG, PNG, WebP ou PDF');
+            throw new BadRequestException('Formato inválido. Use JPG, PNG, WebP, HEIC ou PDF');
         }
 
         const url = await this.uploadService.saveFile(file, subfolder);
