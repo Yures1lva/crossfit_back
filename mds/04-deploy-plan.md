@@ -833,30 +833,28 @@ docker compose ps
 
 > 🤖 = Claude/código · 👤 = Você faz (infra/plataforma)
 
-- [ ] **7.1 — Preparar VPS Hostinger**
-  - [ ] 👤 VPS Hostinger contratada e acessível via SSH
-  - [ ] 👤 Instalar Docker + Docker Compose (`curl -fsSL https://get.docker.com | sh`)
-  - [ ] 👤 Configurar firewall (22, 80, 443)
-  - [ ] 👤 Criar usuário `deploy` com acesso ao Docker
-- [ ] **7.2 — Docker Compose na VPS**
-  - [ ] 🤖 `Dockerfile` backend (multi-stage)
-  - [ ] 🤖 `Dockerfile` frontend (standalone Next.js)
-  - [ ] 🤖 `output: 'standalone'` no `next.config.ts`
-  - [ ] 🤖 `docker-compose.yml` (app + frontend + nginx + certbot)
-  - [ ] 🤖 `nginx.conf` com reverse proxy + SSL
-  - [ ] 👤 Criar `.env` na VPS (copiar vars do Render + Supabase)
-  - [ ] 👤 Clonar repos na VPS (`crossfit_back` + `crossfit_home`)
-- [ ] **7.3 — Validar**
-  - [ ] 👤 `docker compose up -d --build` sem erros
-  - [ ] 👤 Gerar certificados SSL (Certbot — sooacosports.com.br + api...)
-  - [ ] 👤 Testar end-to-end acessando pelo IP da VPS
-  - [ ] 👤 Trocar DNS `sooacosports.com.br` → IP Hostinger
-  - [ ] 👤 Trocar DNS `api.sooacosports.com.br` → IP Hostinger
-  - [ ] 👤 Testar com domínios reais + Supabase funcionando
-- [ ] **7.4 — Encerrar Render e Vercel**
-  - [ ] 👤 Desligar Web Service no Render
-  - [ ] 👤 Remover projeto da Vercel
-  - [ ] ⚠️ Supabase continua ativo (banco + storage ainda usados)
+- [x] **7.1 — Preparar VPS Hostinger** ✅
+  - [x] 👤 VPS Hostinger contratada e acessível via SSH
+  - [x] 👤 Instalar Docker + Docker Compose (`curl -fsSL https://get.docker.com | sh`)
+  - [x] 👤 Configurar firewall (22, 80, 443)
+  - [x] 👤 Criar usuário `deploy` com acesso ao Docker
+- [x] **7.2 — Docker Compose na VPS** ✅
+  - [x] 🤖 `Dockerfile` backend (multi-stage)
+  - [x] 🤖 `Dockerfile` frontend (standalone Next.js)
+  - [x] 🤖 `output: 'standalone'` no `next.config.ts`
+  - [x] 🤖 `docker-compose.yml` (app + frontend + nginx + certbot)
+  - [x] 🤖 `nginx.conf` com reverse proxy + SSL
+  - [x] 👤 Criar `.env` na VPS (copiar vars do Render + Supabase)
+  - [x] 👤 Clonar repos na VPS (`crossfit_back` + `crossfit_home`)
+- [x] **7.3 — Validar** ✅
+  - [x] 👤 `docker compose up -d --build` sem erros
+  - [x] 👤 Gerar certificados SSL (Certbot — admin.sooacosports.com.br + api.sooacosports.com.br)
+  - [x] 👤 Trocar DNS `admin` e `api` → IP Hostinger
+  - [x] 👤 Testar end-to-end: login, cadastro, upload, admin ✅
+- [x] **7.4 — Encerrar Render e Vercel** ✅
+  - [x] 👤 Web Service deletado no Render
+  - [x] 👤 Projeto deletado na Vercel
+  - [x] ⚠️ Supabase continua ativo (banco + storage — migração na Fase 8)
 
 ---
 
