@@ -26,10 +26,12 @@ export class ResponseInscricaoDto {
     documentoIdentidadeUpdatedAt?: Date;
     termoUrl?: string;
     termoUpdatedAt?: Date;
+    telefone?: string;
+    telefoneResolvido?: string;
     valorPago?: number;
     loteNome?: string;
     createdAt: Date;
-    usuario?: { id: string; nome: string; email: string };
+    usuario?: { id: string; nome: string; email: string; telefone?: string };
     campeonato?: { id: string; nome: string; slug: string; whatsappNumero?: string };
 
     constructor(entity: any) {
@@ -38,8 +40,10 @@ export class ResponseInscricaoDto {
         this.paymentStatus = entity.paymentStatus;
         this.cpf = entity.cpf;
         this.email = entity.email;
+        this.telefone = entity.telefone;
         this.nomeAtleta = entity.nomeAtleta;
         this.dadosFormulario = entity.dadosFormulario;
+        this.telefoneResolvido = ResponseInscricaoDto.resolvePhone(entity);
         this.categoria = entity.categoria;
         this.modalidade = entity.modalidade;
         this.tamanhoCamisa = entity.tamanhoCamisa;
@@ -69,6 +73,7 @@ export class ResponseInscricaoDto {
                 id: entity.usuario.id,
                 nome: entity.usuario.nome,
                 email: entity.usuario.email,
+                telefone: entity.usuario.telefone,
             };
         }
 
@@ -80,6 +85,18 @@ export class ResponseInscricaoDto {
                 whatsappNumero: entity.campeonato.whatsappNumero,
             };
         }
+    }
+
+    static resolvePhone(entity: any): string | undefined {
+        if (entity.telefone) return entity.telefone;
+        if (entity.dadosFormulario) {
+            const key = Object.keys(entity.dadosFormulario).find((k: string) =>
+                /telefone|celular|phone|fone/i.test(k),
+            );
+            if (key) return String(entity.dadosFormulario[key]);
+        }
+        if (entity.usuario?.telefone) return entity.usuario.telefone;
+        return undefined;
     }
 }
 

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository, EntityManager } from '@mikro-orm/core';
+import { ConfigService } from '@nestjs/config';
 import { startOfDay } from 'date-fns';
 
 import { WhatsappService } from '../whatsapp/whatsapp.service';
@@ -33,12 +34,17 @@ export interface PaginaMeta {
 export class NotificacoesService {
     private readonly logger = new Logger(NotificacoesService.name);
 
+    private readonly frontendUrl: string;
+
     constructor(
         @InjectRepository(Notificacao)
         private readonly repo: EntityRepository<Notificacao>,
         private readonly em: EntityManager,
         private readonly whatsapp: WhatsappService,
-    ) {}
+        private readonly config: ConfigService,
+    ) {
+        this.frontendUrl = this.config.get<string>('FRONTEND_URL', 'https://sooacosports.com.br');
+    }
 
     async enviar(params: EnviarParams): Promise<void> {
         const { tipo, usuarioId, campeonatoId, inscricaoId, titulo, corpo, phone, metadados } = params;
@@ -113,6 +119,78 @@ export class NotificacoesService {
             corpo: linhas.join('\n'),
             phone,
             metadados: { campeonatoNome, categoria, modalidade },
+        });
+    }
+
+    async notificarInscricaoCriada(params: {
+        inscricaoId: string;
+        nomeAtleta: string;
+        phone?: string;
+        campeonatoNome: string;
+        campeonatoId: string;
+        categoria?: string;
+        modalidade?: string;
+    }): Promise<void> {
+        const { inscricaoId, nomeAtleta, phone, campeonatoNome, campeonatoId, categoria, modalidade } = params;
+
+        const linhas = [
+            `📋 Olá, *${nomeAtleta}*!`,
+            ``,
+            `Sua inscrição no *${campeonatoNome}* foi *recebida com sucesso*! 🎉`,
+        ];
+
+        if (categoria) linhas.push(`📌 Categoria: *${categoria}*`);
+        if (modalidade) linhas.push(`🏋️ Modalidade: *${modalidade}*`);
+
+        linhas.push(
+            ``,
+            `⚠️ Para ser *aprovado(a)*, envie os documentos obrigatórios pela plataforma:`,
+            `👉 ${this.frontendUrl}/dashboard/inscricoes`,
+            ``,
+            `Qualquer dúvida, fale com os organizadores.`,
+        );
+
+        await this.enviar({
+            tipo: 'inscricao_criada',
+            inscricaoId,
+            campeonatoId,
+            titulo: `Inscrição recebida — ${campeonatoNome}`,
+            corpo: linhas.join('\n'),
+            phone,
+            metadados: { campeonatoNome, categoria, modalidade },
+        });
+    }
+
+    async notificarDocumentosPendentes(params: {
+        inscricaoId: string;
+        nomeAtleta: string;
+        phone?: string;
+        campeonatoNome: string;
+        campeonatoId: string;
+        docs: string[];
+    }): Promise<void> {
+        const { inscricaoId, nomeAtleta, phone, campeonatoNome, campeonatoId, docs } = params;
+
+        const linhas = [
+            `⚠️ Olá, *${nomeAtleta}*!`,
+            ``,
+            `Sua inscrição no *${campeonatoNome}* possui documentos pendentes:`,
+            ...docs.map(d => `• ${d}`),
+            ``,
+            `Envie os documentos pela plataforma para ter sua inscrição aprovada:`,
+            `👉 ${this.frontendUrl}/dashboard/inscricoes`,
+            ``,
+            `Qualquer dúvida, fale com os organizadores.`,
+        ];
+
+        await this.enviar({
+            tipo: 'docs_pendentes',
+            inscricaoId,
+            campeonatoId,
+            titulo: `Documentos pendentes — ${campeonatoNome}`,
+            corpo: linhas.join('\n'),
+            phone,
+            metadados: { campeonatoNome, docs },
         });
     }
 

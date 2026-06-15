@@ -265,6 +265,17 @@ export class InscricaoController {
     @ApiBearerAuth('JWT-auth')
     @UseGuards(AuthGuard, RolesGuard)
     @Roles('admin', 'organizer')
+    @Post(':id/notificar')
+    async renotificar(
+        @Param('id') id: string,
+        @Body('tipo') tipo?: 'inscricao_aprovada' | 'docs_pendentes',
+    ) {
+        return this.inscricaoService.renotificar(id, tipo);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard, RolesGuard)
+    @Roles('admin', 'organizer')
     @Patch(':id/parceiros-admin')
     async atualizarParceirosAdmin(
         @Param('id') id: string,

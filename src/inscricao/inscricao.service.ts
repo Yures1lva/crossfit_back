@@ -26,6 +26,28 @@ export class InscricaoService {
         fn().catch(err => this.logger.error(`Falha ao notificar: ${err?.message}`));
     }
 
+    /** Copia o telefone da inscrição para o perfil do usuário, se o perfil ainda não tiver */
+    private async syncPhoneToUser(usuarioId: string, inscricao: Inscricao): Promise<void> {
+        const phone = this.extractPhone(inscricao);
+        if (!phone) return;
+        const usuario = await this.em.findOne(Usuario, { id: usuarioId });
+        if (usuario && !usuario.telefone) {
+            usuario.telefone = phone;
+        }
+    }
+
+    /** Extrai telefone do campo direto ou do dadosFormulario (chave flexível) */
+    private extractPhone(inscricao: Inscricao): string | undefined {
+        if (inscricao.telefone) return inscricao.telefone;
+        if (inscricao.dadosFormulario) {
+            const key = Object.keys(inscricao.dadosFormulario).find(k => /telefone|celular|phone|fone/i.test(k));
+            if (key) return String(inscricao.dadosFormulario[key]);
+        }
+        const usuario = inscricao.usuario as Usuario | undefined;
+        if (usuario?.telefone) return usuario.telefone;
+        return undefined;
+    }
+
     /** Lê o preço da modalidade diretamente do Campeonato */
     private async resolverPreco(campeonatoId: string, modalidade?: string): Promise<{ valor: number; loteNome?: string } | null> {
         if (!modalidade) return null;
@@ -110,6 +132,7 @@ export class InscricaoService {
         inscricao.campeonato = this.em.getReference(Campeonato, dto.campeonatoId);
         inscricao.cpf = dto.cpf;
         inscricao.email = dto.email;
+        inscricao.telefone = dto.telefone;
         inscricao.nomeAtleta = dto.nomeAtleta;
         inscricao.dadosFormulario = dto.dadosFormulario;
         inscricao.categoria = dto.categoria;
@@ -141,7 +164,22 @@ export class InscricaoService {
         }
 
         this.em.persist(inscricao);
+        await this.syncPhoneToUser(usuarioId, inscricao);
         await this.em.flush();
+
+        const campCriado = inscricao.campeonato as Campeonato;
+        this.notificarAsync(() =>
+            this.notificacoes.notificarInscricaoCriada({
+                inscricaoId:    inscricao.id,
+                nomeAtleta:     inscricao.nomeAtleta,
+                phone:          this.extractPhone(inscricao),
+                campeonatoNome: campCriado.nome,
+                campeonatoId:   campCriado.id,
+                categoria:      inscricao.categoria,
+                modalidade:     inscricao.modalidade,
+            }),
+        );
+
         return inscricao;
     }
 
@@ -199,6 +237,20 @@ export class InscricaoService {
 
         this.em.persist(inscricao);
         await this.em.flush();
+
+        const campPublic = inscricao.campeonato as Campeonato;
+        this.notificarAsync(() =>
+            this.notificacoes.notificarInscricaoCriada({
+                inscricaoId:    inscricao.id,
+                nomeAtleta:     inscricao.nomeAtleta,
+                phone:          this.extractPhone(inscricao),
+                campeonatoNome: campPublic.nome,
+                campeonatoId:   campPublic.id,
+                categoria:      inscricao.categoria,
+                modalidade:     inscricao.modalidade,
+            }),
+        );
+
         return inscricao;
     }
 
@@ -220,6 +272,10 @@ export class InscricaoService {
 
         for (const inscricao of inscricoes) {
             inscricao.usuario = this.em.getReference(Usuario, usuarioId);
+        }
+
+        if (inscricoes.length > 0) {
+            await this.syncPhoneToUser(usuarioId, inscricoes[0]);
         }
 
         await this.em.flush();
@@ -498,7 +554,7 @@ export class InscricaoService {
             this.notificacoes.notificarInscricaoAprovada({
                 inscricaoId:    inscricao.id,
                 nomeAtleta:     inscricao.nomeAtleta,
-                phone:          inscricao.telefone,
+                phone:          this.extractPhone(inscricao),
                 campeonatoNome: campAprovado.nome,
                 campeonatoId:   campAprovado.id,
                 dataInicio:     campAprovado.dataInicio,
@@ -527,7 +583,7 @@ export class InscricaoService {
             this.notificacoes.notificarInscricaoRejeitada({
                 inscricaoId:    inscricao.id,
                 nomeAtleta:     inscricao.nomeAtleta,
-                phone:          inscricao.telefone,
+                phone:          this.extractPhone(inscricao),
                 campeonatoNome: campRejeitado.nome,
                 campeonatoId:   campRejeitado.id,
                 motivo:         observacoesAdmin,
@@ -645,5 +701,53 @@ export class InscricaoService {
         }
 
         return { total: inscricoes.length, ...counters, porCategoria, docsCompletos, docsPendentes };
+    }
+
+    async renotificar(
+        id: string,
+        tipo: 'inscricao_aprovada' | 'docs_pendentes' = 'inscricao_aprovada',
+    ): Promise<{ enviado: boolean; semTelefone: boolean }> {
+        const inscricao = await this.inscricaoRepo.findOne(
+            { id, isDeleted: false },
+            { populate: ['campeonato', 'usuario'] },
+        );
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+
+        const camp = inscricao.campeonato as Campeonato;
+        const phone = this.extractPhone(inscricao);
+        const semTelefone = !phone;
+
+        if (tipo === 'docs_pendentes') {
+            const docs: string[] = [];
+            if (!inscricao.laudoMedicoUrl)         docs.push('Laudo médico');
+            if (!inscricao.documentoIdentidadeUrl) docs.push('Documento de identidade');
+            if (!inscricao.termoUrl)               docs.push('Termo de uso de imagem');
+
+            this.notificarAsync(() =>
+                this.notificacoes.notificarDocumentosPendentes({
+                    inscricaoId:    inscricao.id,
+                    nomeAtleta:     inscricao.nomeAtleta,
+                    phone,
+                    campeonatoNome: camp.nome,
+                    campeonatoId:   camp.id,
+                    docs,
+                }),
+            );
+        } else {
+            this.notificarAsync(() =>
+                this.notificacoes.notificarInscricaoAprovada({
+                    inscricaoId:    inscricao.id,
+                    nomeAtleta:     inscricao.nomeAtleta,
+                    phone,
+                    campeonatoNome: camp.nome,
+                    campeonatoId:   camp.id,
+                    dataInicio:     camp.dataInicio,
+                    categoria:      inscricao.categoria,
+                    modalidade:     inscricao.modalidade,
+                }),
+            );
+        }
+
+        return { enviado: true, semTelefone };
     }
 }
