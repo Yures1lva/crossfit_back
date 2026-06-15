@@ -388,43 +388,42 @@ NEXT_PUBLIC_API_URL=https://api.sooacosports.com.br/api/v1
 
 # 🚀 Plano de Migração — VPS Containerizada (Fase 7)
 
-> Migrar **tudo** (Backend + Frontend + Banco + Storage) de Render/Vercel/Supabase para uma **VPS própria** com Docker.
+> Migrar **Backend + Frontend** de Render/Vercel para VPS **Hostinger** com Docker.
+> Banco e Storage permanecem no Supabase por enquanto — migração para Appwrite self-hosted na Fase 8.
 >
-> **Objetivo:** controle total, custo fixo, sem cold starts, sem limites de plataforma.
-> **Princípio:** zero downtime, zero perda de dados.
+> **Objetivo:** controle total, custo fixo, sem cold starts.
+> **Princípio:** zero downtime. Render + Vercel continuam rodando até validação completa na VPS.
 
 ---
 
-## Arquitetura Alvo
+## Arquitetura Alvo (Fase 7)
 
 ```
-VPS (ex: Hetzner, Contabo, DigitalOcean)
+VPS Hostinger
 ├── docker-compose.yml
 │   ├── frontend     ← Next.js (Node 20 Alpine, standalone)
 │   ├── app          ← NestJS Backend (Node 20 Alpine)
-│   ├── postgres     ← PostgreSQL 16 (volume persistente)
-│   ├── minio        ← MinIO (S3-compatible storage, volume persistente)
 │   └── nginx        ← Reverse Proxy + SSL (Certbot)
 │
 ├── volumes/
-│   ├── pg_data/     ← Dados do PostgreSQL
-│   ├── minio_data/  ← Arquivos (fotos, comprovantes, banners)
 │   └── certs/       ← Certificados SSL
+│
+└── externos (mantidos no Supabase por enquanto)
+    ├── PostgreSQL    ← Supabase DB
+    └── Storage       ← Supabase Storage (avatars, atletas, comprovantes…)
 ```
 
 ---
 
-## Fase 7.1 — Preparar a VPS
+## Fase 7.1 — Preparar a VPS Hostinger
 
-### 7.1.1 Escolher provedor e provisionar
+### 7.1.1 Provisionar VPS
 
 | Provedor | Plano sugerido | vCPU | RAM | SSD | Preço |
 |---|---|---|---|---|---|
-| **Hetzner** (recomendado) | CX22 | 2 | 4GB | 40GB | ~€4/mês |
-| Contabo | VPS S | 4 | 8GB | 200GB | ~€6/mês |
-| DigitalOcean | Basic | 2 | 4GB | 80GB | $24/mês |
+| **Hostinger** (escolhido) | KVM 2 | 2 | 8GB | 100GB NVMe | ~$7/mês |
 
-> 💡 Para o tamanho atual do projeto, 2 vCPU + 4GB RAM é suficiente.
+> 💡 O plano KVM 2 da Hostinger é suficiente para front + back + nginx. Supabase continua gerenciando DB e storage.
 
 ### 7.1.2 Configurar a VPS
 
@@ -483,76 +482,37 @@ Atualizar registros DNS para apontar para a VPS:
 
 ### 7.2.2 docker-compose.yml
 
+> Fase 7: apenas frontend, backend e nginx. Banco e storage ainda no Supabase.
+
 ```yaml
 version: '3.8'
 
 services:
-  # ── PostgreSQL
-  postgres:
-    image: postgres:16-alpine
-    restart: always
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-    ports:
-      - "127.0.0.1:5432:5432"  # só acessível localmente
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # ── MinIO (S3-compatible storage)
-  minio:
-    image: minio/minio:latest
-    restart: always
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
-    volumes:
-      - minio_data:/data
-    ports:
-      - "127.0.0.1:9000:9000"   # API (só local)
-      - "127.0.0.1:9001:9001"   # Console web (só local)
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
   # ── Backend NestJS
   app:
     build:
-      context: .
+      context: ./crossfit_back
       dockerfile: Dockerfile
     restart: always
-    depends_on:
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: 3004
-      DB_HOST: postgres
+      # Banco (Supabase — mantido por enquanto)
+      DB_HOST: ${DB_HOST}
       DB_PORT: 5432
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
+      # JWT
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_ACCESS_EXPIRES_IN: 15m
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JWT_REFRESH_EXPIRES_IN: 7d
-      STORAGE_DRIVER: minio
-      MINIO_ENDPOINT: minio
-      MINIO_PORT: 9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
-      MINIO_PUBLIC_URL: https://api.sooacosports.com.br/storage
+      # Storage (Supabase — mantido por enquanto)
+      STORAGE_DRIVER: supabase
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+      # CORS
       FRONTEND_URL: https://sooacosports.com.br
       COOKIE_DOMAIN: .sooacosports.com.br
     ports:
@@ -578,7 +538,6 @@ services:
     depends_on:
       - app
       - frontend
-      - minio
     ports:
       - "80:80"
       - "443:443"
@@ -596,8 +555,6 @@ services:
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done'"
 
 volumes:
-  pg_data:
-  minio_data:
   certbot_webroot:
 ```
 
@@ -708,7 +665,7 @@ http {
         }
     }
 
-    # ── API + Storage (api.sooacosports.com.br)
+    # ── API (api.sooacosports.com.br)
     server {
         listen 443 ssl;
         server_name api.sooacosports.com.br;
@@ -716,8 +673,7 @@ http {
         ssl_certificate /etc/letsencrypt/live/api.sooacosports.com.br/fullchain.pem;
         ssl_certificate_key /etc/letsencrypt/live/api.sooacosports.com.br/privkey.pem;
 
-        # API
-        location /api/ {
+        location / {
             limit_req zone=api burst=50 nodelay;
             proxy_pass http://app:3004;
             proxy_set_header Host $host;
@@ -726,14 +682,6 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
             client_max_body_size 10M;
         }
-
-        # Storage público (MinIO proxy)
-        location /storage/ {
-            proxy_pass http://minio:9000/;
-            proxy_set_header Host $host;
-            expires 7d;
-            add_header Cache-Control "public, immutable";
-        }
     }
 }
 ```
@@ -741,194 +689,29 @@ http {
 ### 7.2.5 .env (na VPS)
 
 ```env
-# Banco
-DB_USER=crossfit
-DB_PASSWORD=<gerar-senha-forte-64-chars>
-DB_NAME=crossfit_arena
+# Banco (Supabase — mesmo do Render)
+DB_HOST=db.xxxx.supabase.co
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=<senha-supabase>
+DB_NAME=postgres
 
-# JWT
-JWT_ACCESS_SECRET=<gerar-64-chars>
-JWT_REFRESH_SECRET=<gerar-64-chars>
+# JWT (mesmo do Render)
+JWT_ACCESS_SECRET=<64-chars>
+JWT_REFRESH_SECRET=<64-chars>
 
-# MinIO
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=<gerar-senha-forte-32-chars>
+# Storage (Supabase — mesmo do Render)
+SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_SERVICE_KEY=eyJhbG...
 ```
+
+> Copiar as mesmas variáveis que estão no Render — só trocar o que mudar.
 
 ---
 
-## Fase 7.3 — Implementar MinioStorageProvider
+## Fase 7.3 — Subir Tudo e Validar
 
-> O código já está preparado para isso graças à abstração `StorageProvider`.
-
-### 7.3.1 Instalar SDK do MinIO
-
-```bash
-npm install minio
-```
-
-### 7.3.2 Criar `minio.storage.ts`
-
-```ts
-// src/upload/storage/minio.storage.ts
-import { Client } from 'minio';
-import { StorageProvider } from './storage.interface';
-
-export class MinioStorageProvider implements StorageProvider {
-    private client: Client;
-    private publicUrl: string;
-
-    constructor() {
-        this.client = new Client({
-            endPoint: process.env.MINIO_ENDPOINT || 'localhost',
-            port: Number(process.env.MINIO_PORT || 9000),
-            useSSL: false,
-            accessKey: process.env.MINIO_ACCESS_KEY || '',
-            secretKey: process.env.MINIO_SECRET_KEY || '',
-        });
-        this.publicUrl = process.env.MINIO_PUBLIC_URL || 'http://localhost:9000';
-    }
-
-    async upload(bucket: string, filePath: string, buffer: Buffer, mimeType: string): Promise<string> {
-        const exists = await this.client.bucketExists(bucket);
-        if (!exists) await this.client.makeBucket(bucket);
-        await this.client.putObject(bucket, filePath, buffer, buffer.length, { 'Content-Type': mimeType });
-        return this.getPublicUrl(bucket, filePath);
-    }
-
-    getPublicUrl(bucket: string, filePath: string): string {
-        return `${this.publicUrl}/${bucket}/${filePath}`;
-    }
-
-    async getSignedUrl(bucket: string, filePath: string, expiresIn = 3600): Promise<string> {
-        return this.client.presignedGetObject(bucket, filePath, expiresIn);
-    }
-
-    async delete(bucket: string, filePath: string): Promise<void> {
-        await this.client.removeObject(bucket, filePath);
-    }
-}
-```
-
-### 7.3.3 Atualizar UploadModule factory
-
-```ts
-// Adicionar ao switch:
-if (process.env.STORAGE_DRIVER === 'minio') {
-    return new MinioStorageProvider();
-}
-```
-
-> 💡 Nenhuma mudança no UploadService, Controller ou Frontend. Só troca o driver.
-
----
-
-## Fase 7.4 — Migrar Dados (Zero Perda)
-
-### 7.4.1 Migrar o banco PostgreSQL
-
-```bash
-# 1. Exportar do Supabase (na máquina local)
-pg_dump \
-  -h db.xxxx.supabase.co \
-  -U postgres \
-  -d postgres \
-  -F c \
-  -f crossfit_backup.dump
-
-# 2. Copiar para a VPS
-scp crossfit_backup.dump deploy@<IP_VPS>:/home/deploy/crossfit/
-
-# 3. Na VPS — restaurar no container PostgreSQL
-docker compose up -d postgres   # subir só o banco
-docker compose exec -T postgres pg_restore \
-  -U crossfit \
-  -d crossfit_arena \
-  --no-owner \
-  --no-privileges \
-  < /home/deploy/crossfit/crossfit_backup.dump
-```
-
-### 7.4.2 Migrar o Storage (arquivos)
-
-```bash
-# 1. Na máquina local — baixar todos os arquivos do Supabase
-# Instalar supabase CLI: npm i -g supabase
-# Ou usar o SDK para listar e baixar bucket por bucket
-
-# Script Node para download em massa:
-```
-```js
-// scripts/download-supabase-storage.js
-const { createClient } = require('@supabase/supabase-js');
-const fs = require('fs');
-const path = require('path');
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-const BUCKETS = ['atletas', 'comprovantes', 'avatars', 'banners', 'lp-assets'];
-
-async function download() {
-    for (const bucket of BUCKETS) {
-        const { data: files } = await supabase.storage.from(bucket).list('', { limit: 1000 });
-        if (!files) continue;
-        const dir = path.join('storage_backup', bucket);
-        fs.mkdirSync(dir, { recursive: true });
-        for (const file of files) {
-            const { data } = await supabase.storage.from(bucket).download(file.name);
-            if (data) {
-                const buffer = Buffer.from(await data.arrayBuffer());
-                fs.writeFileSync(path.join(dir, file.name), buffer);
-                console.log(`✅ ${bucket}/${file.name}`);
-            }
-        }
-    }
-}
-download();
-```
-
-```bash
-# 2. Copiar para a VPS
-scp -r storage_backup/ deploy@<IP_VPS>:/home/deploy/crossfit/
-
-# 3. Na VPS — subir para o MinIO via mc (MinIO Client)
-docker compose up -d minio
-docker compose exec minio mc alias set local http://localhost:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
-
-# Criar buckets
-for bucket in atletas comprovantes avatars banners lp-assets; do
-    docker compose exec minio mc mb local/$bucket --ignore-existing
-done
-
-# Definir políticas (público/privado)
-docker compose exec minio mc anonymous set download local/atletas
-docker compose exec minio mc anonymous set download local/avatars
-docker compose exec minio mc anonymous set download local/banners
-docker compose exec minio mc anonymous set download local/lp-assets
-# comprovantes permanece privado (sem policy pública)
-
-# Upload dos arquivos
-for bucket in atletas comprovantes avatars banners lp-assets; do
-    docker compose exec minio mc cp --recursive /storage_backup/$bucket/ local/$bucket/
-done
-```
-
-### 7.4.3 Verificar integridade
-
-```bash
-# Contar registros no banco
-docker compose exec postgres psql -U crossfit -d crossfit_arena -c "SELECT COUNT(*) FROM inscricao;"
-docker compose exec postgres psql -U crossfit -d crossfit_arena -c "SELECT COUNT(*) FROM usuario;"
-
-# Contar arquivos no MinIO
-docker compose exec minio mc ls --recursive local/atletas | wc -l
-docker compose exec minio mc ls --recursive local/comprovantes | wc -l
-```
-
----
-
-## Fase 7.5 — Subir Tudo e Validar
-
-### 7.5.1 Build e start
+### 7.3.1 Build e start
 
 ```bash
 cd /home/deploy/crossfit
@@ -936,15 +719,18 @@ docker compose up -d --build
 docker compose logs -f app   # verificar logs do backend
 ```
 
-### 7.5.2 Gerar certificados SSL
+### 7.3.2 Gerar certificados SSL
 
 ```bash
+# Primeiro: subir nginx sem SSL para o certbot validar
+# (usar nginx.conf temporário só com HTTP e o bloco certbot)
+
 # Certificado para o frontend
 docker compose run --rm certbot certonly \
   --webroot \
   --webroot-path /var/www/certbot \
   -d sooacosports.com.br \
-  --email seu@email.com \
+  --email yure.siilva9@gmail.com \
   --agree-tos
 
 # Certificado para a API
@@ -952,38 +738,42 @@ docker compose run --rm certbot certonly \
   --webroot \
   --webroot-path /var/www/certbot \
   -d api.sooacosports.com.br \
-  --email seu@email.com \
+  --email yure.siilva9@gmail.com \
   --agree-tos
 
-# Reiniciar nginx com SSL
+# Reiniciar nginx com SSL ativo
 docker compose restart nginx
 ```
 
-### 7.5.3 Testar
+### 7.3.3 Testar
 
 - [ ] `https://sooacosports.com.br` — Frontend carrega
 - [ ] `https://api.sooacosports.com.br/api/docs` — Swagger abre
 - [ ] Login/cadastro funciona
-- [ ] Upload de comprovante funciona (vai pro MinIO)
+- [ ] Upload de comprovante funciona (vai pro Supabase)
 - [ ] Comprovantes abrem via signed URL
 - [ ] Fotos de atletas carregam no frontend
 - [ ] Admin aprova/rejeita inscrições normalmente
 - [ ] SSR do Next.js funciona (SEO, landing pages dinâmicas)
 
-### 7.5.4 Trocar o DNS
+### 7.3.4 Trocar o DNS
 
-Quando tudo estiver validado:
+Quando tudo estiver validado na VPS:
 
-1. Alterar registro A de `sooacosports.com.br` → `<IP_DA_VPS>`
-2. Alterar registro A de `api.sooacosports.com.br` → `<IP_DA_VPS>`
+1. Alterar registro A de `sooacosports.com.br` → `<IP_HOSTINGER>`
+2. Alterar registro A de `api.sooacosports.com.br` → `<IP_HOSTINGER>`
 3. Aguardar propagação (até 24h, geralmente minutos)
 4. Testar novamente com os domínios reais
+5. Só então desligar Render e Vercel
 
 ---
 
-## Fase 7.6 — Manutenção e Backups
+## Fase 7.4 — Manutenção e Backups
 
-### 7.6.1 Backup automático do banco (cron)
+### 7.4.1 Backup automático do banco (cron)
+
+> Banco ainda é Supabase — free tier faz backup automático diário (7 dias).
+> Este cron é para quando migrar para banco próprio na Fase 8.
 
 ```bash
 # /home/deploy/crossfit/backup.sh
@@ -1003,7 +793,7 @@ crontab -e
 0 3 * * * /home/deploy/crossfit/backup.sh >> /home/deploy/crossfit/backups/backup.log 2>&1
 ```
 
-### 7.6.2 Atualizar o backend (deploy)
+### 7.4.2 Atualizar o app (deploy contínuo)
 
 ```bash
 cd /home/deploy/crossfit
@@ -1015,10 +805,9 @@ docker compose up -d --build app
 # Frontend
 cd crossfit_home && git pull origin main && cd ..
 docker compose up -d --build frontend
-# O auto schema sync do main.ts cuida das colunas novas automaticamente
 ```
 
-### 7.6.3 Monitoramento básico
+### 7.4.3 Monitoramento básico
 
 ```bash
 # Ver logs em tempo real
@@ -1031,74 +820,183 @@ docker stats
 docker compose ps
 ```
 
-### 7.6.4 Rollback em caso de falha
+### 7.4.4 Rollback em caso de falha
 
 ```bash
-# Voltar DNS para Render + Vercel (se precisar)
-# Os dois continuam rodando enquanto não forem desligados
-
-# Restaurar backup do banco
-docker compose exec -T postgres pg_restore \
-  -U crossfit -d crossfit_arena --clean --no-owner \
-  < /home/deploy/crossfit/backups/db_YYYYMMDD_HHMM.dump
+# Opção mais rápida: voltar DNS para Render + Vercel
+# (Os dois continuam rodando enquanto não forem desligados)
 ```
 
 ---
 
-## Fase 7.7 — Checklist de Migração
+## Fase 7.5 — Checklist de Migração (Hostinger)
 
-> 🤖 = Antigravity faz (código) · 👤 = Você faz (infra)
+> 🤖 = Claude/código · 👤 = Você faz (infra/plataforma)
 
-- [ ] **7.1 — Preparar VPS**
-  - [ ] 👤 Contratar VPS (Hetzner CX22 recomendado)
-  - [ ] 👤 Instalar Docker + Docker Compose
+- [ ] **7.1 — Preparar VPS Hostinger**
+  - [ ] 👤 VPS Hostinger contratada e acessível via SSH
+  - [ ] 👤 Instalar Docker + Docker Compose (`curl -fsSL https://get.docker.com | sh`)
   - [ ] 👤 Configurar firewall (22, 80, 443)
-  - [ ] 👤 Criar usuário `deploy`
-- [ ] **7.2 — Docker Compose**
-  - [ ] 🤖 Criar `Dockerfile` backend (multi-stage)
-  - [ ] 🤖 Criar `Dockerfile` frontend (standalone Next.js)
-  - [ ] 🤖 Adicionar `output: 'standalone'` no `next.config.ts`
-  - [ ] 🤖 Criar `docker-compose.yml` (postgres, minio, app, frontend, nginx)
-  - [ ] 🤖 Criar `nginx.conf` com reverse proxy para ambos os domínios + SSL
-  - [ ] 👤 Criar `.env` na VPS com credenciais
-- [ ] **7.3 — MinioStorageProvider**
-  - [ ] 🤖 Instalar SDK `minio`
-  - [ ] 🤖 Implementar `minio.storage.ts`
+  - [ ] 👤 Criar usuário `deploy` com acesso ao Docker
+- [ ] **7.2 — Docker Compose na VPS**
+  - [ ] 🤖 `Dockerfile` backend (multi-stage)
+  - [ ] 🤖 `Dockerfile` frontend (standalone Next.js)
+  - [ ] 🤖 `output: 'standalone'` no `next.config.ts`
+  - [ ] 🤖 `docker-compose.yml` (app + frontend + nginx + certbot)
+  - [ ] 🤖 `nginx.conf` com reverse proxy + SSL
+  - [ ] 👤 Criar `.env` na VPS (copiar vars do Render + Supabase)
+  - [ ] 👤 Clonar repos na VPS (`crossfit_back` + `crossfit_home`)
+- [ ] **7.3 — Validar**
+  - [ ] 👤 `docker compose up -d --build` sem erros
+  - [ ] 👤 Gerar certificados SSL (Certbot — sooacosports.com.br + api...)
+  - [ ] 👤 Testar end-to-end acessando pelo IP da VPS
+  - [ ] 👤 Trocar DNS `sooacosports.com.br` → IP Hostinger
+  - [ ] 👤 Trocar DNS `api.sooacosports.com.br` → IP Hostinger
+  - [ ] 👤 Testar com domínios reais + Supabase funcionando
+- [ ] **7.4 — Encerrar Render e Vercel**
+  - [ ] 👤 Desligar Web Service no Render
+  - [ ] 👤 Remover projeto da Vercel
+  - [ ] ⚠️ Supabase continua ativo (banco + storage ainda usados)
+
+---
+
+---
+
+# Fase 8 — Migração para Appwrite Self-Hosted (Futura)
+
+> Migrar **Banco de Dados + Storage** do Supabase para Appwrite auto-hospedado em uma **segunda VPS Hostinger**.
+>
+> **Pré-requisito:** Fase 7 completa e estável por pelo menos 2 semanas.
+> **Objetivo:** sair do Supabase completamente, custo zero de terceiros.
+
+---
+
+## 8.1 Arquitetura Alvo (Fase 8)
+
+```
+VPS Hostinger #1 (atual — Fase 7)       VPS Hostinger #2 (nova — Fase 8)
+├── frontend (Next.js)                   ├── Appwrite (self-hosted)
+├── app (NestJS)              ────────►  │   ├── PostgreSQL (banco)
+└── nginx                                │   ├── Storage (arquivos)
+                                         │   ├── MinIO interno
+                                         │   └── Redis, Workers…
+```
+
+---
+
+## 8.2 O que muda no código
+
+### 8.2.1 Storage → AppwriteStorageProvider
+
+Appwrite tem S3-compatible storage. Criar `appwrite.storage.ts` (mesmo padrão do `supabase.storage.ts`) usando o SDK oficial `node-appwrite`. A interface `StorageProvider` já está preparada — só trocar o driver.
+
+```ts
+// src/upload/storage/appwrite.storage.ts
+import { Client, Storage } from 'node-appwrite';
+import { StorageProvider } from './storage.interface';
+
+export class AppwriteStorageProvider implements StorageProvider {
+    private storage: Storage;
+    private endpoint: string;
+    private projectId: string;
+
+    constructor() {
+        const client = new Client()
+            .setEndpoint(process.env.APPWRITE_ENDPOINT || '')
+            .setProject(process.env.APPWRITE_PROJECT_ID || '')
+            .setKey(process.env.APPWRITE_API_KEY || '');
+        this.storage = new Storage(client);
+        this.endpoint = process.env.APPWRITE_ENDPOINT || '';
+        this.projectId = process.env.APPWRITE_PROJECT_ID || '';
+    }
+
+    async upload(bucket: string, filePath: string, buffer: Buffer, mimeType: string): Promise<string> {
+        const { InputFile } = await import('node-appwrite/file');
+        const file = InputFile.fromBuffer(buffer, filePath);
+        const result = await this.storage.createFile(bucket, filePath.replace(/\//g, '_'), file);
+        return this.getPublicUrl(bucket, result.$id);
+    }
+
+    getPublicUrl(bucket: string, fileId: string): string {
+        return `${this.endpoint}/storage/buckets/${bucket}/files/${fileId}/view?project=${this.projectId}`;
+    }
+
+    async getSignedUrl(bucket: string, fileId: string, expiresIn = 3600): Promise<string> {
+        // Appwrite usa JWT token para signed URLs
+        return this.getPublicUrl(bucket, fileId); // placeholder — implementar com JWT
+    }
+
+    async delete(bucket: string, fileId: string): Promise<void> {
+        await this.storage.deleteFile(bucket, fileId);
+    }
+}
+```
+
+### 8.2.2 Banco → conectar direto ao PostgreSQL do Appwrite
+
+Appwrite usa PostgreSQL internamente e expõe conexão direta. Só trocar as vars `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` para apontar para a VPS #2.
+
+### 8.2.3 Variáveis de ambiente
+
+```env
+# Storage (Appwrite)
+STORAGE_DRIVER=appwrite
+APPWRITE_ENDPOINT=https://appwrite.sooacosports.com.br/v1
+APPWRITE_PROJECT_ID=<id-do-projeto>
+APPWRITE_API_KEY=<api-key-server>
+
+# Banco (PostgreSQL interno do Appwrite)
+DB_HOST=<IP-VPS-2>
+DB_PORT=5432
+DB_USER=appwrite
+DB_PASSWORD=<senha>
+DB_NAME=crossfit_arena
+```
+
+---
+
+## 8.3 Checklist Fase 8
+
+- [ ] **8.1 — Provisionar VPS #2 (Hostinger)**
+  - [ ] 👤 Contratar VPS Hostinger para Appwrite
+  - [ ] 👤 Instalar Docker + Docker Compose
+  - [ ] 👤 Deploy do Appwrite self-hosted (`docker compose` oficial do Appwrite)
+  - [ ] 👤 Domínio `appwrite.sooacosports.com.br` apontando para VPS #2
+- [ ] **8.2 — Configurar Appwrite**
+  - [ ] 👤 Criar projeto no Appwrite
+  - [ ] 👤 Criar buckets (atletas, comprovantes, avatars, banners, lp-assets)
+  - [ ] 👤 Configurar permissões dos buckets (público/privado)
+  - [ ] 👤 Gerar API key com permissões de storage
+- [ ] **8.3 — Implementar AppwriteStorageProvider**
+  - [ ] 🤖 Instalar `node-appwrite`
+  - [ ] 🤖 Criar `appwrite.storage.ts`
   - [ ] 🤖 Atualizar factory no `UploadModule`
-  - [ ] 🤖 Testar localmente com MinIO em Docker
-- [ ] **7.4 — Migrar Dados**
+  - [ ] 🤖 Testar localmente com Appwrite em Docker
+- [ ] **8.4 — Migrar Dados**
   - [ ] 👤 Exportar banco do Supabase (`pg_dump`)
-  - [ ] 👤 Importar no PostgreSQL da VPS (`pg_restore`)
-  - [ ] 👤 Baixar arquivos do Supabase Storage
-  - [ ] 👤 Subir arquivos no MinIO (mc cp)
-  - [ ] 👤 Verificar contagens (banco + arquivos)
-- [ ] **7.5 — Validar**
-  - [ ] 👤 Gerar certificado SSL (Certbot)
-  - [ ] 👤 Testar end-to-end com IP da VPS
-  - [ ] 👤 Trocar DNS `sooacosports.com.br` → VPS
-  - [ ] 👤 Trocar DNS `api.sooacosports.com.br` → VPS
-  - [ ] 👤 Testar com domínios reais
-- [ ] **7.6 — Manutenção**
-  - [ ] 👤 Configurar cron de backup diário
-  - [ ] 👤 Testar rollback
-  - [ ] 👤 Desligar Render (só após validação completa)
-  - [ ] 👤 Desconectar Vercel (só após validação completa)
+  - [ ] 👤 Importar no PostgreSQL do Appwrite (`pg_restore`)
+  - [ ] 👤 Migrar arquivos: Supabase Storage → Appwrite Storage
+  - [ ] 👤 Verificar integridade (contagens banco + arquivos)
+- [ ] **8.5 — Trocar variáveis e validar**
+  - [ ] 👤 Atualizar `.env` na VPS #1 com vars do Appwrite
+  - [ ] 👤 `docker compose up -d --build app` na VPS #1
+  - [ ] 👤 Testar end-to-end completo
   - [ ] 👤 Cancelar/pausar Supabase (manter backup final)
 
 ---
 
 ## Comparação de Custos
 
-| Item | Atual (Render + Vercel + Supabase) | VPS Containerizada |
-|---|---|---|
-| Backend | Render Free/Starter (~$0-7/mês) | Incluído na VPS |
-| Frontend | Vercel Free (~$0/mês, com limites) | Incluído na VPS |
-| Banco | Supabase Free (500MB) | Incluído na VPS |
-| Storage | Supabase Free (1GB) | Incluído na VPS (disco da VPS) |
-| **Total** | **$0-7/mês** (com limites) | **~€4-6/mês** (sem limites) |
-| Cold starts | Sim (Render Free) | Não (sempre ligado) |
-| Storage ilimitado | Não (1GB free) | Sim (limitado pelo disco) |
-| Build minutes | Limitado (Vercel 6000min/mês) | Ilimitado |
-| Controle total | Não | Sim |
+| Item | Atual (Render+Vercel+Supabase) | Fase 7 (Hostinger+Supabase) | Fase 8 (2x Hostinger+Appwrite) |
+|---|---|---|---|
+| Backend | Render Free/Starter (~$0-7/mês) | Hostinger VPS #1 | Hostinger VPS #1 |
+| Frontend | Vercel Free | Hostinger VPS #1 | Hostinger VPS #1 |
+| Banco | Supabase Free (500MB) | Supabase Free | Appwrite (VPS #2) |
+| Storage | Supabase Free (1GB) | Supabase Free | Appwrite (VPS #2) |
+| VPS #1 | — | ~$7/mês | ~$7/mês |
+| VPS #2 | — | — | ~$7/mês |
+| **Total** | **$0-7/mês** (limites) | **~$7/mês** (sem cold start) | **~$14/mês** (totalmente self-hosted) |
+| Cold starts | Sim (Render Free) | Não | Não |
+| Controle total | Não | Parcial (Supabase externo) | Sim (100%) |
 
-> 💡 A VPS compensa quando: (1) precisa de mais storage, (2) quer eliminar cold starts, (3) quer controle total sobre infra, (4) build minutes do Vercel estão estourando.
+> **Estratégia:** Fase 7 já elimina cold starts e limites de Render/Vercel mantendo Supabase gratuito. Fase 8 é opcional — faz sentido quando o storage do Supabase (1GB free) estourar ou quando quiser controle total.
