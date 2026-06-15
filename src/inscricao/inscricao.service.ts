@@ -64,47 +64,48 @@ export class InscricaoService {
     /** Mapeia a URL do comprovante, documentos e fotos para Signed URLs, se necessário */
     private async mapSignedUrls(inscricoes: Inscricao | Inscricao[]): Promise<void> {
         const items = Array.isArray(inscricoes) ? inscricoes : [inscricoes];
-        for (const inscricao of items) {
-            // Comprovante (bucket privado)
+
+        const signOne = async (inscricao: Inscricao) => {
+            const tasks: Promise<void>[] = [];
+
             if (inscricao.comprovanteUrl && !inscricao.comprovanteUrl.startsWith('http')) {
-                try {
-                    inscricao.comprovanteUrl = await this.uploadService.getSignedUrl('comprovantes', inscricao.comprovanteUrl, 3600);
-                } catch (e) {
-                    // Falha silenciosa
-                }
+                tasks.push(
+                    this.uploadService.getSignedUrl('comprovantes', inscricao.comprovanteUrl, 3600)
+                        .then(url => { inscricao.comprovanteUrl = url; })
+                        .catch(() => {}),
+                );
             }
-            // Laudo médico (bucket privado)
             if (inscricao.laudoMedicoUrl && !inscricao.laudoMedicoUrl.startsWith('http')) {
-                try {
-                    inscricao.laudoMedicoUrl = await this.uploadService.getSignedUrl('documentos', inscricao.laudoMedicoUrl, 3600);
-                } catch (e) {
-                    // Falha silenciosa
-                }
+                tasks.push(
+                    this.uploadService.getSignedUrl('documentos', inscricao.laudoMedicoUrl, 3600)
+                        .then(url => { inscricao.laudoMedicoUrl = url; })
+                        .catch(() => {}),
+                );
             }
-            // Documento de identidade (bucket privado)
             if (inscricao.documentoIdentidadeUrl && !inscricao.documentoIdentidadeUrl.startsWith('http')) {
-                try {
-                    inscricao.documentoIdentidadeUrl = await this.uploadService.getSignedUrl('documentos', inscricao.documentoIdentidadeUrl, 3600);
-                } catch (e) {
-                    // Falha silenciosa
-                }
+                tasks.push(
+                    this.uploadService.getSignedUrl('documentos', inscricao.documentoIdentidadeUrl, 3600)
+                        .then(url => { inscricao.documentoIdentidadeUrl = url; })
+                        .catch(() => {}),
+                );
             }
-            // Termo de uso de imagem (bucket privado)
             if (inscricao.termoUrl && !inscricao.termoUrl.startsWith('http')) {
-                try {
-                    inscricao.termoUrl = await this.uploadService.getSignedUrl('documentos', inscricao.termoUrl, 3600);
-                } catch (e) {
-                    // Falha silenciosa
-                }
+                tasks.push(
+                    this.uploadService.getSignedUrl('documentos', inscricao.termoUrl, 3600)
+                        .then(url => { inscricao.termoUrl = url; })
+                        .catch(() => {}),
+                );
             }
-            // Fotos dos atletas (bucket público — resolve URL pública)
             if (inscricao.fotosAtletas?.length) {
-                inscricao.fotosAtletas = inscricao.fotosAtletas.map((f) => {
-                    if (f.startsWith('http')) return f;
-                    return this.uploadService.getPublicUrl('atletas', f);
-                });
+                inscricao.fotosAtletas = inscricao.fotosAtletas.map(f =>
+                    f.startsWith('http') ? f : this.uploadService.getPublicUrl('atletas', f),
+                );
             }
-        }
+
+            await Promise.all(tasks);
+        };
+
+        await Promise.all(items.map(signOne));
     }
 
     // ── Atleta autenticado ─────────────────────
