@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository, EntityManager } from '@mikro-orm/postgresql';
 import { Inscricao, StatusInscricao, StatusPagamento } from './entities/inscricao.entity';
@@ -6,9 +6,12 @@ import { CreateInscricaoDto } from './dto/create-inscricao.dto';
 import { Usuario } from '../usuario/entities/usuario.entity';
 import { Campeonato } from '../campeonato/entities/campeonato.entity';
 import { UploadService } from '../upload/upload.service';
+import { NotificacoesService } from '../notificacoes/notificacoes.service';
 
 @Injectable()
 export class InscricaoService {
+    private readonly logger = new Logger(InscricaoService.name);
+
     constructor(
         @InjectRepository(Inscricao)
         private readonly inscricaoRepo: EntityRepository<Inscricao>,
@@ -16,7 +19,12 @@ export class InscricaoService {
         private readonly campeonatoRepo: EntityRepository<Campeonato>,
         private readonly em: EntityManager,
         private readonly uploadService: UploadService,
+        private readonly notificacoes: NotificacoesService,
     ) { }
+
+    private notificarAsync(fn: () => Promise<void>): void {
+        fn().catch(err => this.logger.error(`Falha ao notificar: ${err?.message}`));
+    }
 
     /** Lê o preço da modalidade diretamente do Campeonato */
     private async resolverPreco(campeonatoId: string, modalidade?: string): Promise<{ valor: number; loteNome?: string } | null> {
@@ -484,6 +492,21 @@ export class InscricaoService {
         inscricao.paymentStatus = StatusPagamento.CONFIRMED;
         if (observacoesAdmin) inscricao.observacoesAdmin = observacoesAdmin;
         await this.em.flush();
+
+        const campAprovado = inscricao.campeonato as Campeonato;
+        this.notificarAsync(() =>
+            this.notificacoes.notificarInscricaoAprovada({
+                inscricaoId:    inscricao.id,
+                nomeAtleta:     inscricao.nomeAtleta,
+                phone:          inscricao.telefone,
+                campeonatoNome: campAprovado.nome,
+                campeonatoId:   campAprovado.id,
+                dataInicio:     campAprovado.dataInicio,
+                categoria:      inscricao.categoria,
+                modalidade:     inscricao.modalidade,
+            }),
+        );
+
         await this.mapSignedUrls(inscricao);
         return inscricao;
     }
@@ -498,6 +521,19 @@ export class InscricaoService {
         inscricao.paymentStatus = StatusPagamento.REJECTED;
         if (observacoesAdmin) inscricao.observacoesAdmin = observacoesAdmin;
         await this.em.flush();
+
+        const campRejeitado = inscricao.campeonato as Campeonato;
+        this.notificarAsync(() =>
+            this.notificacoes.notificarInscricaoRejeitada({
+                inscricaoId:    inscricao.id,
+                nomeAtleta:     inscricao.nomeAtleta,
+                phone:          inscricao.telefone,
+                campeonatoNome: campRejeitado.nome,
+                campeonatoId:   campRejeitado.id,
+                motivo:         observacoesAdmin,
+            }),
+        );
+
         await this.mapSignedUrls(inscricao);
         return inscricao;
     }
