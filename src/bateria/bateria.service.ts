@@ -87,12 +87,12 @@ export class BateriaService {
             categoria,
         } as any);
 
-        // Remove baterias existentes desta prova+categoria
-        const existentes = await this.bateriaRepo.findAll({
-            where: { prova: { id: provaId }, categoriaKey, isDeleted: false },
-        });
-        existentes.forEach((b) => { b.isDeleted = true; });
-        await this.em.flush();
+        // Soft-deleta baterias existentes desta prova+categoria via SQL direto
+        await this.em.nativeUpdate(
+            Bateria,
+            { prova: provaId, categoriaKey, isDeleted: false },
+            { isDeleted: true },
+        );
 
         const baterias: Bateria[] = [];
         let bateriaIdx = 1;
