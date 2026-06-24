@@ -24,6 +24,12 @@ export class Usuario {
   @Property({ nullable: true })
   refreshToken?: string; // hash bcrypt do refresh token
 
+  @Property({ nullable: true })
+  resetCode?: string; // hash bcrypt do código de recuperação de senha
+
+  @Property({ nullable: true })
+  resetCodeExpiry?: Date; // expiração do código de recuperação
+
   @Property({ default: 'athlete' })
   role: 'admin' | 'organizer' | 'athlete' = 'athlete';
 

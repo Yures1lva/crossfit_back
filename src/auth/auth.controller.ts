@@ -14,6 +14,8 @@ import { ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { SignInDto } from './dto/signin.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthGuard } from './guards/auth.guard';
 import { RefreshTokenGuard } from './guards/refresh-token.guard';
 
@@ -102,6 +104,21 @@ export class AuthController {
     async checkAccount(@Body() body: { email: string }) {
         const exists = await this.authService.accountExists(body.email);
         return { exists };
+    }
+
+    /** Solicita código de recuperação de senha via WhatsApp */
+    @HttpCode(200)
+    @Post('forgot-password')
+    async forgotPassword(@Body() dto: ForgotPasswordDto) {
+        return this.authService.requestPasswordReset(dto.email);
+    }
+
+    /** Redefine a senha com o código recebido no WhatsApp */
+    @HttpCode(200)
+    @Post('reset-password')
+    async resetPassword(@Body() dto: ResetPasswordDto) {
+        await this.authService.resetPassword(dto.email, dto.code, dto.newPassword);
+        return { message: 'Senha redefinida com sucesso.' };
     }
 
     @UseGuards(AuthGuard)

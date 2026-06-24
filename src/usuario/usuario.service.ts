@@ -103,6 +103,29 @@ export class UsuarioService {
         return usuario;
     }
 
+    async saveResetCode(id: string, hashedCode: string, expiry: Date): Promise<void> {
+        const usuario = await this.findOne(id);
+        if (!usuario) throw new NotFoundException('Usuário não encontrado');
+        usuario.resetCode = hashedCode;
+        usuario.resetCodeExpiry = expiry;
+        await this.em.flush();
+    }
+
+    async clearResetCode(id: string): Promise<void> {
+        const usuario = await this.findOne(id);
+        if (!usuario) return;
+        usuario.resetCode = undefined;
+        usuario.resetCodeExpiry = undefined;
+        await this.em.flush();
+    }
+
+    async updatePassword(id: string, hashedPassword: string): Promise<void> {
+        const usuario = await this.findOne(id);
+        if (!usuario) throw new NotFoundException('Usuário não encontrado');
+        usuario.password = hashedPassword;
+        await this.em.flush();
+    }
+
     async remove(id: string): Promise<void> {
         const usuario = await this.findOne(id);
         if (!usuario) throw new NotFoundException('Usuário não encontrado');
