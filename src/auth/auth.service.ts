@@ -1,9 +1,10 @@
-import { Injectable, UnauthorizedException, ConflictException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { UsuarioService } from '../usuario/usuario.service';
 import { InscricaoService } from '../inscricao/inscricao.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 
 @Injectable()
 export class AuthService {
@@ -13,6 +14,7 @@ export class AuthService {
         private readonly inscricaoService: InscricaoService,
         private jwtService: JwtService,
         private configService: ConfigService,
+        private readonly whatsappService: WhatsappService,
     ) { }
 
     async signIn(email: string, password: string) {
@@ -98,5 +100,70 @@ export class AuthService {
     async accountExists(email: string): Promise<boolean> {
         const usuario = await this.usuarioService.findByEmail(email);
         return !!usuario;
+    }
+
+    private readonly RESET_CODE_TTL_MS   = 15 * 60 * 1000; // 15 min
+    private readonly RESET_CODE_COOLDOWN_MS = 2 * 60 * 1000;  // 2 min entre reenvios
+
+    async requestPasswordReset(email: string): Promise<{ message: string; hasPhone: boolean }> {
+        const usuario = await this.usuarioService.findByEmail(email);
+
+        if (!usuario) {
+            // Não revelamos se o e-mail existe ou não
+            return { message: 'Se este e-mail estiver cadastrado e possuir telefone, você receberá um código no WhatsApp.', hasPhone: false };
+        }
+
+        if (!usuario.telefone) {
+            throw new BadRequestException('Sua conta não possui telefone cadastrado. Entre em contato com o administrador para recuperar o acesso.');
+        }
+
+        // Cooldown: deriva quando o código foi enviado a partir do expiry já salvo
+        if (usuario.resetCode && usuario.resetCodeExpiry) {
+            const sentAt = new Date(usuario.resetCodeExpiry.getTime() - this.RESET_CODE_TTL_MS);
+            const cooldownEnds = new Date(sentAt.getTime() + this.RESET_CODE_COOLDOWN_MS);
+            if (new Date() < cooldownEnds) {
+                const retryAfterSeconds = Math.ceil((cooldownEnds.getTime() - Date.now()) / 1000);
+                throw new BadRequestException(`Aguarde ${retryAfterSeconds} segundos antes de solicitar um novo código.`);
+            }
+        }
+
+        const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 dígitos
+        const hashedCode = await bcrypt.hash(code, 10);
+        const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
+
+        await this.usuarioService.saveResetCode(usuario.id, hashedCode, expiry);
+
+        const message = `🔐 *Recuperação de Senha*\n\nSeu código de verificação é: *${code}*\n\nEle expira em 15 minutos. Não compartilhe com ninguém.`;
+        await this.whatsappService.sendText(usuario.telefone, message);
+
+        const phoneMasked = usuario.telefone.replace(/(\d{2})\d+(\d{2})$/, '$1*****$2');
+        return {
+            message: `Código enviado para o WhatsApp com final ${phoneMasked}.`,
+            hasPhone: true,
+        };
+    }
+
+    async resetPassword(email: string, code: string, newPassword: string): Promise<void> {
+        const usuario = await this.usuarioService.findByEmail(email);
+
+        if (!usuario || !usuario.resetCode || !usuario.resetCodeExpiry) {
+            throw new BadRequestException('Código inválido ou expirado.');
+        }
+
+        if (new Date() > usuario.resetCodeExpiry) {
+            await this.usuarioService.clearResetCode(usuario.id);
+            throw new BadRequestException('Código expirado. Solicite um novo.');
+        }
+
+        const matches = await bcrypt.compare(code, usuario.resetCode);
+        if (!matches) {
+            throw new BadRequestException('Código inválido.');
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await this.usuarioService.updatePassword(usuario.id, hashedPassword);
+        await this.usuarioService.clearResetCode(usuario.id);
+        // Invalida sessões existentes
+        await this.usuarioService.updateRefreshToken(usuario.id, null);
     }
 }
