@@ -12,11 +12,34 @@ const path = require('path');
 const app = express();
 app.use(express.json());
 
+// Baileys ocasionalmente lança exceções síncronas vindas de operações internas
+// (ex: retry de mensagem com conexão já fechada). Sem isso, uma falha pontual
+// derruba o processo inteiro e força reconexão a frio com a sessão salva.
+process.on('uncaughtException', (err) => {
+  console.error('⚠️  uncaughtException (ignorado, processo segue rodando):', err.message);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('⚠️  unhandledRejection (ignorado, processo segue rodando):', err?.message ?? err);
+});
+
 let sock = null;
 let isConnected = false;
 let currentQrDataUrl = null;
 
 const AUTH_DIR = process.env.AUTH_DIR || './auth';
+
+/**
+ * Limpa o CONTEÚDO da pasta de auth sem remover a pasta em si.
+ * AUTH_DIR é o ponto de montagem do volume Docker — um rmSync recursivo
+ * na pasta em si falha com EBUSY ("resource busy or locked").
+ */
+function clearAuthDir() {
+  const authDir = path.resolve(AUTH_DIR);
+  if (!fs.existsSync(authDir)) return;
+  for (const entry of fs.readdirSync(authDir)) {
+    fs.rmSync(path.join(authDir, entry), { recursive: true, force: true });
+  }
+}
 
 async function connect() {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
@@ -56,7 +79,9 @@ async function connect() {
         console.log(`⚠️  Reconectando (código ${code})...`);
         setTimeout(connect, 5000);
       } else {
-        console.log('🔴 Sessão expirada. Desconecte e escaneie novamente.');
+        console.log('🔴 Sessão expirada — limpando credenciais e gerando QR novo automaticamente...');
+        clearAuthDir();
+        setTimeout(connect, 2000);
       }
     }
   });
@@ -79,10 +104,7 @@ app.post('/disconnect', async (_req, res) => {
     isConnected = false;
     currentQrDataUrl = null;
 
-    const authDir = path.resolve(AUTH_DIR);
-    if (fs.existsSync(authDir)) {
-      fs.rmSync(authDir, { recursive: true, force: true });
-    }
+    clearAuthDir();
 
     setTimeout(connect, 1000);
     res.json({ ok: true, message: 'Sessão encerrada. Reconectando para gerar novo QR…' });

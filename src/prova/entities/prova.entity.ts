@@ -9,6 +9,7 @@ export enum TipoValorProva {
 }
 
 export enum StatusProva {
+    CRIADA = 'criada',
     EM_ANDAMENTO = 'em_andamento',
     CONCLUIDA = 'concluida',
 }
@@ -45,7 +46,7 @@ export class Prova {
     cor: string = '#D9DD6E';
 
     @Enum(() => StatusProva)
-    status: StatusProva = StatusProva.EM_ANDAMENTO;
+    status: StatusProva = StatusProva.CRIADA;
 
     /** true = menor valor vence (tempo); false = maior valor vence (reps/kg) */
     @Property({ default: true })
