@@ -40,5 +40,13 @@ export class CreateProvaDto {
 
     @IsNumber()
     @IsOptional()
+    raiasPorBateria?: number;
+
+    @IsBoolean()
+    @IsOptional()
+    raiaUnica?: boolean;
+
+    @IsNumber()
+    @IsOptional()
     ordem?: number;
 }

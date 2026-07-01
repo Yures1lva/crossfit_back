@@ -47,7 +47,7 @@ export class BateriaController {
             campeonatoId,
             provaId,
             categoria,
-            raias ? parseInt(raias) : 10,
+            raias ? parseInt(raias) : undefined,
         );
     }
 

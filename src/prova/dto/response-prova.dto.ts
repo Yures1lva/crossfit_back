@@ -12,6 +12,8 @@ export class ResponseProvaDto {
     cor: string;
     status: string;
     menorVence: boolean;
+    raiasPorBateria: number;
+    raiaUnica: boolean;
     ordem: number;
     createdAt: Date;
     updatedAt: Date;
@@ -28,6 +30,8 @@ export class ResponseProvaDto {
         this.cor = prova.cor;
         this.status = prova.status;
         this.menorVence = prova.menorVence;
+        this.raiasPorBateria = prova.raiasPorBateria;
+        this.raiaUnica = prova.raiaUnica;
         this.ordem = prova.ordem;
         this.createdAt = prova.createdAt;
         this.updatedAt = prova.updatedAt;

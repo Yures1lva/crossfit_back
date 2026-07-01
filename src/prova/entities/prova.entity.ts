@@ -51,6 +51,14 @@ export class Prova {
     @Property({ default: true })
     menorVence: boolean = true;
 
+    /** Número de raias por bateria ao gerar automaticamente */
+    @Property({ default: 6 })
+    raiasPorBateria: number = 6;
+
+    /** Quando true, gera uma única bateria com todos os atletas em fila */
+    @Property({ default: false })
+    raiaUnica: boolean = false;
+
     @Property({ default: 0 })
     ordem: number = 0;
 

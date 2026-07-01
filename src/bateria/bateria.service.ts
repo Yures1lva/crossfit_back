@@ -73,8 +73,13 @@ export class BateriaService {
     }
 
     /** Gera baterias automaticamente para um campeonato com base nas inscrições aprovadas */
-    async gerarAutomatico(campeonatoId: string, provaId: string, categoriaKey: string, raiasPorBateria: number): Promise<Bateria[]> {
+    async gerarAutomatico(campeonatoId: string, provaId: string, categoriaKey: string, raiasPorBateriaOverride?: number): Promise<Bateria[]> {
         const inscricaoRepo = this.em.getRepository(Inscricao);
+        const provaRepo = this.em.getRepository(Prova);
+
+        const prova = await provaRepo.findOneOrFail({ id: provaId });
+        const raiaUnica = prova.raiaUnica;
+        const raiasPorBateria = raiasPorBateriaOverride ?? prova.raiasPorBateria;
 
         const [modalidade, ...restCategoria] = categoriaKey.split('|');
         const categoria = restCategoria.join('|');
@@ -95,25 +100,43 @@ export class BateriaService {
         );
 
         const baterias: Bateria[] = [];
-        let bateriaIdx = 1;
 
-        for (let i = 0; i < inscricoes.length; i += raiasPorBateria) {
-            const grupo = inscricoes.slice(i, i + raiasPorBateria);
+        if (raiaUnica) {
+            // Raia única: uma bateria com todos os atletas em fila
             const bateria = new Bateria();
             bateria.campeonato = this.em.getReference(Campeonato, campeonatoId);
             bateria.prova = this.em.getReference(Prova, provaId);
             bateria.categoriaKey = categoriaKey;
-            bateria.nome = inscricoes.length <= raiasPorBateria ? 'Bateria Única' : `Bateria ${bateriaIdx}`;
-            bateria.lanes = grupo.map((insc: Inscricao, raiaIdx: number) => ({
-                raia: raiaIdx + 1,
+            bateria.nome = 'Bateria Única';
+            bateria.lanes = inscricoes.map((insc: Inscricao, idx: number) => ({
+                raia: idx + 1,
                 inscricaoId: insc.id,
                 nomeAtleta: insc.nomeAtleta,
                 box: (insc.dadosFormulario as any)?.box ?? '',
             }));
-            bateria.ordem = bateriaIdx - 1;
+            bateria.ordem = 0;
             this.em.persist(bateria);
             baterias.push(bateria);
-            bateriaIdx++;
+        } else {
+            let bateriaIdx = 1;
+            for (let i = 0; i < inscricoes.length; i += raiasPorBateria) {
+                const grupo = inscricoes.slice(i, i + raiasPorBateria);
+                const bateria = new Bateria();
+                bateria.campeonato = this.em.getReference(Campeonato, campeonatoId);
+                bateria.prova = this.em.getReference(Prova, provaId);
+                bateria.categoriaKey = categoriaKey;
+                bateria.nome = inscricoes.length <= raiasPorBateria ? 'Bateria Única' : `Bateria ${bateriaIdx}`;
+                bateria.lanes = grupo.map((insc: Inscricao, raiaIdx: number) => ({
+                    raia: raiaIdx + 1,
+                    inscricaoId: insc.id,
+                    nomeAtleta: insc.nomeAtleta,
+                    box: (insc.dadosFormulario as any)?.box ?? '',
+                }));
+                bateria.ordem = bateriaIdx - 1;
+                this.em.persist(bateria);
+                baterias.push(bateria);
+                bateriaIdx++;
+            }
         }
 
         await this.em.flush();

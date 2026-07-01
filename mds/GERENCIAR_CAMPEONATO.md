@@ -135,19 +135,28 @@ Retorna `{ provas[], rows[] }` onde cada `row` tem:
 | `horaFim` | string? | Ex: "09:45" |
 | `lanes` | json | `{ raia, inscricaoId, nomeAtleta, box }[]` |
 | `ordem` | number | Ordem dentro da prova |
+
+### Campos da entidade `Prova` para baterias
+
+| Campo | Tipo | Default | Descrição |
+|---|---|---|---|
+| `raiasPorBateria` | number | 6 | Raias por bateria ao gerar automaticamente |
+| `raiaUnica` | boolean | false | Quando true, gera 1 bateria única com todos em fila |
 | `isDeleted` | boolean | Soft delete |
 
 ### Geração Automática (`gerarAutomatico`)
 
 ```
-POST /campeonatos/:id/baterias/gerar
-Body: { provaId, categoriaKey, raiasPorBateria }
+POST /campeonatos/:id/baterias/gerar?provaId=&categoria=&raias=
 ```
+
+- `raias` é opcional — se omitido, usa `prova.raiasPorBateria`
+- Se `prova.raiaUnica === true`, ignora raias e gera **1 bateria única** com todos em fila (raia 1, 2, 3…)
 
 1. Busca todas as inscrições `approved` da categoria
 2. Soft-deleta baterias existentes para essa prova+categoria
-3. Divide os atletas em grupos de `raiasPorBateria`
-4. Cria uma bateria por grupo com `lanes` preenchidas
+3. Se `raiaUnica`: 1 bateria com todos os atletas listados em sequência
+4. Se não: divide em grupos de `raiasPorBateria`, cria uma bateria por grupo
 5. Se cabe em um grupo → nome = "Bateria Única"
 
 ### Outros Endpoints
