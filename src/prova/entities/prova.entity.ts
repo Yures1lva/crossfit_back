@@ -48,6 +48,14 @@ export class Prova {
     @Enum(() => StatusProva)
     status: StatusProva = StatusProva.CRIADA;
 
+    /** Timestamp de quando o status virou CONCLUIDA — base para calcular a janela de contestação */
+    @Property({ nullable: true })
+    concluidaEm?: Date;
+
+    /** Minutos após concluidaEm em que atletas podem contestar a pontuação */
+    @Property({ default: 30 })
+    janelaContestacaoMin: number = 30;
+
     /** true = menor valor vence (tempo); false = maior valor vence (reps/kg) */
     @Property({ default: true })
     menorVence: boolean = true;

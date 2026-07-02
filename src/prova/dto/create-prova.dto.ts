@@ -49,4 +49,8 @@ export class CreateProvaDto {
     @IsNumber()
     @IsOptional()
     ordem?: number;
+
+    @IsNumber()
+    @IsOptional()
+    janelaContestacaoMin?: number;
 }

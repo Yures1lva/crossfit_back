@@ -11,6 +11,8 @@ export class ResponseProvaDto {
     tarefas?: string[];
     cor: string;
     status: string;
+    concluidaEm?: Date;
+    janelaContestacaoMin: number;
     menorVence: boolean;
     raiasPorBateria: number;
     raiaUnica: boolean;
@@ -29,6 +31,8 @@ export class ResponseProvaDto {
         this.tarefas = prova.tarefas;
         this.cor = prova.cor;
         this.status = prova.status;
+        this.concluidaEm = prova.concluidaEm;
+        this.janelaContestacaoMin = prova.janelaContestacaoMin;
         this.menorVence = prova.menorVence;
         this.raiasPorBateria = prova.raiasPorBateria;
         this.raiaUnica = prova.raiaUnica;

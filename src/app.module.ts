@@ -19,6 +19,7 @@ import { NotificacoesModule }  from './notificacoes/notificacoes.module';
 import { ProvaModule }         from './prova/prova.module';
 import { PontuacaoModule }     from './pontuacao/pontuacao.module';
 import { BateriaModule }       from './bateria/bateria.module';
+import { ContestacaoModule }   from './contestacao/contestacao.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { BateriaModule }       from './bateria/bateria.module';
     ProvaModule,
     PontuacaoModule,
     BateriaModule,
+    ContestacaoModule,
   ],
 })
 export class AppModule { }

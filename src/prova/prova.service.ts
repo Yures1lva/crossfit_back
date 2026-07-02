@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository, EntityManager } from '@mikro-orm/postgresql';
-import { Prova } from './entities/prova.entity';
+import { Prova, StatusProva } from './entities/prova.entity';
 import { CreateProvaDto } from './dto/create-prova.dto';
 import { UpdateProvaDto } from './dto/update-prova.dto';
 import { Campeonato } from '../campeonato/entities/campeonato.entity';
@@ -39,7 +39,11 @@ export class ProvaService {
         if (dto.cor !== undefined) prova.cor = dto.cor;
         if (dto.status !== undefined) prova.status = dto.status;
         if (dto.menorVence !== undefined) prova.menorVence = dto.menorVence;
+        if (dto.raiasPorBateria !== undefined) prova.raiasPorBateria = dto.raiasPorBateria;
+        if (dto.raiaUnica !== undefined) prova.raiaUnica = dto.raiaUnica;
         if (dto.ordem !== undefined) prova.ordem = dto.ordem;
+        if (dto.janelaContestacaoMin !== undefined) prova.janelaContestacaoMin = dto.janelaContestacaoMin;
+        if (prova.status === StatusProva.CONCLUIDA) prova.concluidaEm = new Date();
 
         this.em.persist(prova);
         await this.em.flush();
@@ -55,9 +59,18 @@ export class ProvaService {
         if (dto.videoUrl !== undefined) prova.videoUrl = dto.videoUrl;
         if (dto.tarefas !== undefined) prova.tarefas = dto.tarefas;
         if (dto.cor !== undefined) prova.cor = dto.cor;
-        if (dto.status !== undefined) prova.status = dto.status;
-        if (dto.menorVence !== undefined) prova.menorVence = dto.menorVence;
+        if (dto.raiasPorBateria !== undefined) prova.raiasPorBateria = dto.raiasPorBateria;
+        if (dto.raiaUnica !== undefined) prova.raiaUnica = dto.raiaUnica;
         if (dto.ordem !== undefined) prova.ordem = dto.ordem;
+        if (dto.janelaContestacaoMin !== undefined) prova.janelaContestacaoMin = dto.janelaContestacaoMin;
+
+        // Marca (ou limpa) o timestamp de conclusão só na transição de status
+        if (dto.status !== undefined && dto.status !== prova.status) {
+            prova.status = dto.status;
+            prova.concluidaEm = dto.status === StatusProva.CONCLUIDA ? new Date() : undefined;
+        }
+        if (dto.menorVence !== undefined) prova.menorVence = dto.menorVence;
+
         await this.em.flush();
         return prova;
     }
