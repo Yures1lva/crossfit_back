@@ -66,7 +66,17 @@ export class Inscricao {
 
     // ── Parceiros (dupla/trio) ────────────────
     @Property({ nullable: true, type: 'json' })
-    parceiros?: { nome: string; cpf: string; tamanhoCamisa?: string }[];
+    parceiros?: {
+        nome: string;
+        cpf: string;
+        tamanhoCamisa?: string;
+        laudoMedicoUrl?: string;
+        laudoMedicoUpdatedAt?: Date;
+        documentoIdentidadeUrl?: string;
+        documentoIdentidadeUpdatedAt?: Date;
+        termoUrl?: string;
+        termoUpdatedAt?: Date;
+    }[];
 
     // ── Uploads ──────────────────────────────
     @Property({ nullable: true })

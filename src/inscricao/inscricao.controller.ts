@@ -128,6 +128,26 @@ export class InscricaoController {
 
     @ApiBearerAuth('JWT-auth')
     @UseGuards(AuthGuard)
+    @Patch(':id/parceiros/:index/documento')
+    async enviarDocumentoParceiro(
+        @Param('id') id: string,
+        @Param('index') index: string,
+        @Body('tipo') tipo: 'laudoMedico' | 'documentoIdentidade' | 'termo',
+        @Body('url') url: string,
+        @Request() req: any,
+    ) {
+        const inscricao = await this.inscricaoService.enviarDocumentoParceiro(
+            id,
+            req.usuario.sub,
+            parseInt(index, 10),
+            tipo,
+            url,
+        );
+        return new ResponseInscricaoDto(inscricao);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard)
     @Patch(':id/laudo-medico')
     async enviarLaudoMedico(
         @Param('id') id: string,

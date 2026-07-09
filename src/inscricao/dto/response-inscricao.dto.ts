@@ -9,7 +9,14 @@ export class ResponseInscricaoDto {
     categoria?: string;
     modalidade?: string;
     tamanhoCamisa?: string;
-    parceiros?: { nome: string; cpf: string }[];
+    parceiros?: {
+        nome: string;
+        cpf: string;
+        tamanhoCamisa?: string;
+        laudoMedicoUrl?: string;
+        documentoIdentidadeUrl?: string;
+        termoUrl?: string;
+    }[];
     comprovanteUrl?: string;
     comprovanteUpdateCount?: number;
     comprovanteUpdatedAt?: Date;

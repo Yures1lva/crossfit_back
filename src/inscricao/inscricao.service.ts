@@ -539,6 +539,25 @@ export class InscricaoService {
             }
         }
 
+        for (const parceiro of inscricao.parceiros ?? []) {
+            const rotulo = parceiro.nome || 'parceiro';
+            if (!parceiro.laudoMedicoUrl) {
+                if (isPastDeadline && !camp?.permitirLaudoNoDia) {
+                    docsPendentes.push(`Laudo médico (${rotulo})`);
+                }
+            }
+            if (!parceiro.documentoIdentidadeUrl) {
+                if (isPastDeadline) {
+                    docsPendentes.push(`Documento de identidade (${rotulo})`);
+                }
+            }
+            if (!parceiro.termoUrl) {
+                if (isPastDeadline) {
+                    docsPendentes.push(`Termo de uso de imagem (${rotulo})`);
+                }
+            }
+        }
+
         if (docsPendentes.length > 0) {
             throw new BadRequestException(
                 `Não é possível aprovar: o prazo limite de documentos expirou e os seguintes estão pendentes — ${docsPendentes.join(', ')}`,
@@ -621,6 +640,32 @@ export class InscricaoService {
 
         inscricao.documentoIdentidadeUrl = documentoIdentidadeUrl;
         inscricao.documentoIdentidadeUpdatedAt = new Date();
+        await this.em.flush();
+        return inscricao;
+    }
+
+    async enviarDocumentoParceiro(
+        id: string,
+        usuarioId: string,
+        index: number,
+        tipo: 'laudoMedico' | 'documentoIdentidade' | 'termo',
+        url: string,
+    ): Promise<Inscricao> {
+        const inscricao = await this.inscricaoRepo.findOne({
+            id,
+            usuario: { id: usuarioId },
+            isDeleted: false,
+        });
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+        if (!inscricao.parceiros?.[index]) throw new BadRequestException('Parceiro não encontrado');
+
+        const parceiros = [...inscricao.parceiros];
+        parceiros[index] = {
+            ...parceiros[index],
+            [`${tipo}Url`]: url,
+            [`${tipo}UpdatedAt`]: new Date(),
+        };
+        inscricao.parceiros = parceiros;
         await this.em.flush();
         return inscricao;
     }
