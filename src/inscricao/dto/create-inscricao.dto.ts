@@ -13,6 +13,10 @@ class ParceiroDto {
 
     @IsNotEmpty()
     @IsString()
+    telefone!: string;
+
+    @IsNotEmpty()
+    @IsString()
     tamanhoCamisa!: string;
 }
 
@@ -67,7 +71,7 @@ export class CreateInscricaoDto {
     @IsArray()
     @ValidateNested({ each: true })
     @Type(() => ParceiroDto)
-    parceiros?: { nome: string; cpf: string }[];
+    parceiros?: { nome: string; cpf: string; telefone: string }[];
 
     @ApiPropertyOptional()
     @IsOptional()

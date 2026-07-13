@@ -12,6 +12,7 @@ export class ResponseInscricaoDto {
     parceiros?: {
         nome: string;
         cpf: string;
+        telefone?: string;
         tamanhoCamisa?: string;
         laudoMedicoUrl?: string;
         documentoIdentidadeUrl?: string;
@@ -40,6 +41,8 @@ export class ResponseInscricaoDto {
     createdAt: Date;
     usuario?: { id: string; nome: string; email: string; telefone?: string };
     campeonato?: { id: string; nome: string; slug: string; whatsappNumero?: string };
+    isParceiro?: boolean;
+    meuParceiroIndex?: number;
 
     constructor(entity: any) {
         this.id = entity.id;
@@ -74,6 +77,8 @@ export class ResponseInscricaoDto {
         this.valorPago = entity.valorPago;
         this.loteNome = entity.loteNome;
         this.createdAt = entity.createdAt;
+        this.isParceiro = !!entity.isParceiro;
+        this.meuParceiroIndex = entity.meuParceiroIndex;
 
         if (entity.usuario?.id) {
             this.usuario = {
@@ -103,6 +108,16 @@ export class ResponseInscricaoDto {
             if (key) return String(entity.dadosFormulario[key]);
         }
         if (entity.usuario?.telefone) return entity.usuario.telefone;
+        return undefined;
+    }
+
+    static resolveCidade(entity: any): string | undefined {
+        if (entity.dadosFormulario) {
+            const key = Object.keys(entity.dadosFormulario).find((k: string) =>
+                /cidade|city/i.test(k),
+            );
+            if (key) return String(entity.dadosFormulario[key]);
+        }
         return undefined;
     }
 }

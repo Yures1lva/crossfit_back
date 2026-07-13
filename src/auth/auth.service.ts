@@ -77,6 +77,9 @@ export class AuthService {
         // ── Vinculação automática de inscrições sem conta ──
         await this.inscricaoService.linkToUser(novoUsuario.id, cpf, email);
 
+        // ── Sincroniza nome nos registros em que este CPF aparece como parceiro de equipe ──
+        await this.inscricaoService.syncParceiroNomeByCpf(cpf, nome);
+
         // Auto-login após registro (signIn vai comparar com o hash)
         return this.signIn(email, password);
     }

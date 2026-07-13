@@ -7,9 +7,11 @@ import {
     Body,
     Param,
     Query,
+    Res,
     UseGuards,
     Request,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { InscricaoService } from './inscricao.service';
 import { CreateInscricaoDto } from './dto/create-inscricao.dto';
@@ -115,7 +117,7 @@ export class InscricaoController {
     @Patch(':id/parceiros')
     async atualizarParceiros(
         @Param('id') id: string,
-        @Body('parceiros') parceiros: { nome: string; cpf: string; tamanhoCamisa: string }[],
+        @Body('parceiros') parceiros: { nome: string; cpf: string; telefone: string; tamanhoCamisa: string }[],
         @Request() req: any,
     ) {
         const inscricao = await this.inscricaoService.atualizarParceiros(
@@ -299,9 +301,22 @@ export class InscricaoController {
     @Patch(':id/parceiros-admin')
     async atualizarParceirosAdmin(
         @Param('id') id: string,
-        @Body('parceiros') parceiros: { nome: string; cpf: string; tamanhoCamisa: string }[],
+        @Body('parceiros') parceiros: { nome: string; cpf: string; telefone: string; tamanhoCamisa: string }[],
     ) {
         const inscricao = await this.inscricaoService.atualizarParceirosAdmin(id, parceiros);
+        return new ResponseInscricaoDto(inscricao);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard, RolesGuard)
+    @Roles('admin', 'organizer')
+    @Patch(':id/dados-admin')
+    async atualizarDadosAdmin(
+        @Param('id') id: string,
+        @Body('categoria') categoria?: string,
+        @Body('tamanhoCamisa') tamanhoCamisa?: string,
+    ) {
+        const inscricao = await this.inscricaoService.atualizarDadosAdmin(id, { categoria, tamanhoCamisa });
         return new ResponseInscricaoDto(inscricao);
     }
 
@@ -311,5 +326,38 @@ export class InscricaoController {
     @Get('campeonato/:campeonatoId/stats')
     async stats(@Param('campeonatoId') campeonatoId: string) {
         return this.inscricaoService.statsByCampeonato(campeonatoId);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard, RolesGuard)
+    @Roles('admin', 'organizer')
+    @Get('campeonato/:campeonatoId/export')
+    @ApiQuery({ name: 'status', required: false })
+    @ApiQuery({ name: 'categoria', required: false })
+    @ApiQuery({ name: 'modalidade', required: false })
+    @ApiQuery({ name: 'sexo', required: false })
+    @ApiQuery({ name: 'docs', required: false })
+    @ApiQuery({ name: 'search', required: false })
+    async exportar(
+        @Param('campeonatoId') campeonatoId: string,
+        @Res() res: Response,
+        @Query('status') status?: string,
+        @Query('categoria') categoria?: string,
+        @Query('modalidade') modalidade?: string,
+        @Query('sexo') sexo?: string,
+        @Query('docs') docs?: string,
+        @Query('search') search?: string,
+    ) {
+        const { buffer, nomeArquivo } = await this.inscricaoService.exportarCampeonatoXlsx(
+            campeonatoId,
+            { status, categoria, modalidade, sexo, docs, search },
+        );
+
+        res.set({
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename="${nomeArquivo}"`,
+            'Content-Length': buffer.length,
+        });
+        res.end(buffer);
     }
 }

@@ -69,6 +69,7 @@ export class Inscricao {
     parceiros?: {
         nome: string;
         cpf: string;
+        telefone?: string;
         tamanhoCamisa?: string;
         laudoMedicoUrl?: string;
         laudoMedicoUpdatedAt?: Date;

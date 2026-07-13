@@ -7,6 +7,7 @@ import { Usuario } from '../usuario/entities/usuario.entity';
 import { Campeonato } from '../campeonato/entities/campeonato.entity';
 import { UploadService } from '../upload/upload.service';
 import { NotificacoesService } from '../notificacoes/notificacoes.service';
+import { buildInscricoesWorkbook } from './inscricao-export.util';
 
 @Injectable()
 export class InscricaoService {
@@ -283,14 +284,58 @@ export class InscricaoService {
         return inscricoes.length;
     }
 
-    async findByUsuario(usuarioId: string): Promise<Inscricao[]> {
+    async syncParceiroNomeByCpf(cpf: string, nome: string): Promise<void> {
+        if (!cpf || !nome) return;
+
         const inscricoes = await this.inscricaoRepo.findAll({
+            where: { isDeleted: false, parceiros: { $contains: [{ cpf }] } } as any,
+        });
+
+        for (const inscricao of inscricoes) {
+            const parceiros = [...(inscricao.parceiros ?? [])];
+            let changed = false;
+            for (let idx = 0; idx < parceiros.length; idx++) {
+                if (parceiros[idx].cpf === cpf && parceiros[idx].nome !== nome) {
+                    parceiros[idx] = { ...parceiros[idx], nome };
+                    changed = true;
+                }
+            }
+            if (changed) inscricao.parceiros = parceiros;
+        }
+
+        await this.em.flush();
+    }
+
+    async findByUsuario(usuarioId: string): Promise<Inscricao[]> {
+        const usuario = await this.em.findOne(Usuario, usuarioId);
+
+        const own = await this.inscricaoRepo.findAll({
             where: { usuario: { id: usuarioId }, isDeleted: false },
             populate: ['campeonato'],
             orderBy: { createdAt: 'DESC' },
         });
-        await this.mapSignedUrls(inscricoes);
-        return inscricoes;
+
+        let asParceiro: Inscricao[] = [];
+        if (usuario?.cpf) {
+            const encontrados = await this.inscricaoRepo.findAll({
+                where: {
+                    isDeleted: false,
+                    parceiros: { $contains: [{ cpf: usuario.cpf }] },
+                } as any,
+                populate: ['campeonato'],
+                orderBy: { createdAt: 'DESC' },
+            });
+            const ownIds = new Set(own.map((i) => i.id));
+            asParceiro = encontrados.filter((i) => !ownIds.has(i.id));
+            for (const inscricao of asParceiro) {
+                (inscricao as any).isParceiro = true;
+                (inscricao as any).meuParceiroIndex = inscricao.parceiros?.findIndex((p) => p.cpf === usuario.cpf) ?? -1;
+            }
+        }
+
+        const todas = [...own, ...asParceiro];
+        await this.mapSignedUrls(todas);
+        return todas;
     }
 
     async enviarComprovante(id: string, usuarioId: string, comprovanteUrl: string): Promise<Inscricao> {
@@ -375,7 +420,7 @@ export class InscricaoService {
     async atualizarParceiros(
         id: string,
         usuarioId: string,
-        parceiros: { nome: string; cpf: string; tamanhoCamisa: string }[],
+        parceiros: { nome: string; cpf: string; telefone: string; tamanhoCamisa: string }[],
     ): Promise<Inscricao> {
         const inscricao = await this.inscricaoRepo.findOne({
             id,
@@ -390,11 +435,23 @@ export class InscricaoService {
 
     async atualizarParceirosAdmin(
         id: string,
-        parceiros: { nome: string; cpf: string; tamanhoCamisa: string }[],
+        parceiros: { nome: string; cpf: string; telefone: string; tamanhoCamisa: string }[],
     ): Promise<Inscricao> {
         const inscricao = await this.inscricaoRepo.findOne({ id, isDeleted: false });
         if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
         inscricao.parceiros = parceiros;
+        await this.em.flush();
+        return inscricao;
+    }
+
+    async atualizarDadosAdmin(
+        id: string,
+        dados: { categoria?: string; tamanhoCamisa?: string },
+    ): Promise<Inscricao> {
+        const inscricao = await this.inscricaoRepo.findOne({ id, isDeleted: false });
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+        if (dados.categoria !== undefined) inscricao.categoria = dados.categoria;
+        if (dados.tamanhoCamisa !== undefined) inscricao.tamanhoCamisa = dados.tamanhoCamisa;
         await this.em.flush();
         return inscricao;
     }
@@ -497,6 +554,81 @@ export class InscricaoService {
             limit,
             totalPages: Math.ceil(total / limit),
         };
+    }
+
+    async findAllByCampeonato(
+        campeonatoId: string,
+        filtros?: {
+            status?: string;
+            categoria?: string;
+            modalidade?: string;
+            sexo?: string;
+            docs?: string;
+            search?: string;
+        },
+    ): Promise<Inscricao[]> {
+        const where: any = { campeonato: { id: campeonatoId }, isDeleted: false };
+
+        if (filtros?.status) where.status = filtros.status;
+        if (filtros?.categoria) where.categoria = filtros.categoria;
+        if (filtros?.modalidade) where.modalidade = filtros.modalidade;
+
+        if (filtros?.sexo) {
+            where.categoria = { $ilike: `%${filtros.sexo}%` };
+        }
+
+        if (filtros?.search) {
+            where.$or = [
+                { nomeAtleta: { $ilike: `%${filtros.search}%` } },
+                { email: { $ilike: `%${filtros.search}%` } },
+                { cpf: { $ilike: `%${filtros.search}%` } },
+            ];
+        }
+
+        if (filtros?.docs) {
+            if (filtros.docs === 'ok') {
+                where.laudoMedicoUrl = { $ne: null };
+                where.documentoIdentidadeUrl = { $ne: null };
+                where.termoUrl = { $ne: null };
+            } else if (filtros.docs === 'pendente') {
+                where.$or = [
+                    { laudoMedicoUrl: null },
+                    { documentoIdentidadeUrl: null },
+                    { termoUrl: null },
+                ];
+            }
+        }
+
+        return this.inscricaoRepo.find(where, {
+            populate: ['usuario', 'campeonato'],
+            orderBy: { createdAt: 'DESC' },
+        });
+    }
+
+    async exportarCampeonatoXlsx(
+        campeonatoId: string,
+        filtros?: {
+            status?: string;
+            categoria?: string;
+            modalidade?: string;
+            sexo?: string;
+            docs?: string;
+            search?: string;
+        },
+    ): Promise<{ buffer: Buffer; nomeArquivo: string }> {
+        const campeonato = await this.campeonatoRepo.findOne({ id: campeonatoId });
+        if (!campeonato) throw new NotFoundException('Campeonato não encontrado');
+
+        const inscricoes = await this.findAllByCampeonato(campeonatoId, filtros);
+        const buffer = await buildInscricoesWorkbook(campeonato.nome, inscricoes);
+        const slug = campeonato.nome
+            .normalize('NFD')
+            .replace(/[̀-ͯ]/g, '')
+            .replace(/[^a-zA-Z0-9]+/g, '-')
+            .replace(/(^-|-$)/g, '')
+            .toLowerCase();
+
+        return { buffer: Buffer.from(buffer), nomeArquivo: `inscricoes-${slug}.xlsx` };
     }
 
     async findById(id: string): Promise<Inscricao> {
@@ -651,13 +783,16 @@ export class InscricaoService {
         tipo: 'laudoMedico' | 'documentoIdentidade' | 'termo',
         url: string,
     ): Promise<Inscricao> {
-        const inscricao = await this.inscricaoRepo.findOne({
-            id,
-            usuario: { id: usuarioId },
-            isDeleted: false,
-        });
+        const inscricao = await this.inscricaoRepo.findOne({ id, isDeleted: false });
         if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
         if (!inscricao.parceiros?.[index]) throw new BadRequestException('Parceiro não encontrado');
+
+        const isOwner = inscricao.usuario?.id === usuarioId;
+        if (!isOwner) {
+            const usuario = await this.em.findOne(Usuario, usuarioId);
+            const isParceiro = !!usuario?.cpf && inscricao.parceiros[index].cpf === usuario.cpf;
+            if (!isParceiro) throw new NotFoundException('Inscrição não encontrada');
+        }
 
         const parceiros = [...inscricao.parceiros];
         parceiros[index] = {
