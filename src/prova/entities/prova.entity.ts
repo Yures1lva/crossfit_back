@@ -14,6 +14,12 @@ export enum StatusProva {
     CONCLUIDA = 'concluida',
 }
 
+export enum SexoProva {
+    AMBOS = 'ambos',
+    MASCULINO = 'masculino',
+    FEMININO = 'feminino',
+}
+
 @Entity()
 export class Prova {
     @PrimaryKey({ type: 'uuid' })
@@ -35,11 +41,22 @@ export class Prova {
     @Property({ nullable: true })
     timecap?: string;
 
+    /** Horário de início do evento, formato "HH:mm" */
+    @Property({ nullable: true })
+    horaInicio?: string;
+
     @Property({ nullable: true })
     videoUrl?: string;
 
     @Property({ nullable: true, type: 'json' })
     tarefas?: string[];
+
+    /** Nomes de categoria base (sem sexo), ex: ["Iniciante", "Scaled"]. Vazio/null = todas as categorias. */
+    @Property({ nullable: true, type: 'json' })
+    categorias?: string[];
+
+    @Enum(() => SexoProva)
+    sexo: SexoProva = SexoProva.AMBOS;
 
     /** Hex color para identificação visual */
     @Property({ default: '#D9DD6E' })

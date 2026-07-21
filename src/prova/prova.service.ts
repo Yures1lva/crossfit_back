@@ -34,9 +34,12 @@ export class ProvaService {
         if (dto.tipoValor !== undefined) prova.tipoValor = dto.tipoValor;
         if (dto.unidade !== undefined) prova.unidade = dto.unidade;
         if (dto.timecap !== undefined) prova.timecap = dto.timecap;
+        if (dto.horaInicio !== undefined) prova.horaInicio = dto.horaInicio;
         if (dto.videoUrl !== undefined) prova.videoUrl = dto.videoUrl;
         if (dto.tarefas !== undefined) prova.tarefas = dto.tarefas;
         if (dto.cor !== undefined) prova.cor = dto.cor;
+        if (dto.categorias !== undefined) prova.categorias = dto.categorias;
+        if (dto.sexo !== undefined) prova.sexo = dto.sexo;
         if (dto.status !== undefined) prova.status = dto.status;
         if (dto.menorVence !== undefined) prova.menorVence = dto.menorVence;
         if (dto.raiasPorBateria !== undefined) prova.raiasPorBateria = dto.raiasPorBateria;
@@ -56,9 +59,12 @@ export class ProvaService {
         if (dto.tipoValor !== undefined) prova.tipoValor = dto.tipoValor;
         if (dto.unidade !== undefined) prova.unidade = dto.unidade;
         if (dto.timecap !== undefined) prova.timecap = dto.timecap;
+        if (dto.horaInicio !== undefined) prova.horaInicio = dto.horaInicio;
         if (dto.videoUrl !== undefined) prova.videoUrl = dto.videoUrl;
         if (dto.tarefas !== undefined) prova.tarefas = dto.tarefas;
         if (dto.cor !== undefined) prova.cor = dto.cor;
+        if (dto.categorias !== undefined) prova.categorias = dto.categorias;
+        if (dto.sexo !== undefined) prova.sexo = dto.sexo;
         if (dto.raiasPorBateria !== undefined) prova.raiasPorBateria = dto.raiasPorBateria;
         if (dto.raiaUnica !== undefined) prova.raiaUnica = dto.raiaUnica;
         if (dto.ordem !== undefined) prova.ordem = dto.ordem;

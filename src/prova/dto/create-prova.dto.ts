@@ -1,5 +1,5 @@
 import { IsString, IsEnum, IsOptional, IsBoolean, IsNumber, IsArray } from 'class-validator';
-import { TipoValorProva, StatusProva } from '../entities/prova.entity';
+import { TipoValorProva, StatusProva, SexoProva } from '../entities/prova.entity';
 
 export class CreateProvaDto {
     @IsString()
@@ -19,6 +19,10 @@ export class CreateProvaDto {
 
     @IsString()
     @IsOptional()
+    horaInicio?: string;
+
+    @IsString()
+    @IsOptional()
     videoUrl?: string;
 
     @IsArray()
@@ -29,6 +33,15 @@ export class CreateProvaDto {
     @IsString()
     @IsOptional()
     cor?: string;
+
+    @IsArray()
+    @IsString({ each: true })
+    @IsOptional()
+    categorias?: string[];
+
+    @IsEnum(SexoProva)
+    @IsOptional()
+    sexo?: SexoProva;
 
     @IsEnum(StatusProva)
     @IsOptional()

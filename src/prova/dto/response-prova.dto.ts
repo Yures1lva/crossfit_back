@@ -7,9 +7,12 @@ export class ResponseProvaDto {
     tipoValor: string;
     unidade?: string;
     timecap?: string;
+    horaInicio?: string;
     videoUrl?: string;
     tarefas?: string[];
     cor: string;
+    categorias?: string[];
+    sexo: string;
     status: string;
     concluidaEm?: Date;
     janelaContestacaoMin: number;
@@ -27,9 +30,12 @@ export class ResponseProvaDto {
         this.tipoValor = prova.tipoValor;
         this.unidade = prova.unidade;
         this.timecap = prova.timecap;
+        this.horaInicio = prova.horaInicio;
         this.videoUrl = prova.videoUrl;
         this.tarefas = prova.tarefas;
         this.cor = prova.cor;
+        this.categorias = prova.categorias;
+        this.sexo = prova.sexo;
         this.status = prova.status;
         this.concluidaEm = prova.concluidaEm;
         this.janelaContestacaoMin = prova.janelaContestacaoMin;

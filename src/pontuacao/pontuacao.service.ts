@@ -7,6 +7,7 @@ import { Campeonato } from '../campeonato/entities/campeonato.entity';
 import { Prova } from '../prova/entities/prova.entity';
 import { Inscricao } from '../inscricao/entities/inscricao.entity';
 import { TipoValorProva } from '../prova/entities/prova.entity';
+import { provaElegivelParaCategoriaKey } from '../common/utils/categoria.util';
 
 @Injectable()
 export class PontuacaoService {
@@ -83,10 +84,11 @@ export class PontuacaoService {
 
     /** Retorna pontuações agrupadas por inscricao para a tabela geral de uma categoria */
     async tabelaGeral(campeonatoId: string, categoriaKey: string) {
-        const provas = await this.provaRepo.findAll({
+        const todasProvas = await this.provaRepo.findAll({
             where: { campeonato: { id: campeonatoId }, isDeleted: false },
             orderBy: { ordem: 'ASC', createdAt: 'ASC' },
         });
+        const provas = todasProvas.filter((p) => provaElegivelParaCategoriaKey(p, categoriaKey));
 
         const pontuacoes = await this.pontuacaoRepo.findAll({
             where: { campeonato: { id: campeonatoId } },
@@ -133,7 +135,7 @@ export class PontuacaoService {
         rows.sort((a, b) => b.totalPontos - a.totalPontos);
         rows.forEach((r, i) => { (r as any).posicaoGeral = i + 1; });
 
-        return { provas: provas.map((p) => ({ id: p.id, nome: p.nome, cor: p.cor })), rows };
+        return { provas: provas.map((p) => ({ id: p.id, nome: p.nome, cor: p.cor, categorias: p.categorias, sexo: p.sexo, horaInicio: p.horaInicio })), rows };
     }
 
     /** Upsert de pontuação. Recalcula posições após salvar. */

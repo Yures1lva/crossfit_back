@@ -318,6 +318,27 @@ curl -I https://api.sooacosports.com.br/api/v1 | head -3
 
 ---
 
+## Notas de deploy — mudanças de banco (Prova: categorias/sexo/horário)
+
+Essa leva de mudanças adiciona 3 colunas novas na tabela `prova` (backend):
+
+| Coluna | Tipo | Default | Migration |
+|--------|------|---------|-----------|
+| `categorias` | `jsonb`, nullable | `null` (= vale pra todas as categorias) | `Migration20260720000000.ts` |
+| `sexo` | `varchar(255)` | `'ambos'` | `Migration20260720000000.ts` |
+| `hora_inicio` | `varchar(255)`, nullable | `null` | `Migration20260721000000.ts` |
+
+- [ ] **Não precisa rodar migration manualmente.** O backend sincroniza o schema sozinho no boot (`generator.updateSchema({ safe: true, dropTables: false })` em `main.ts`) — só reiniciar o PM2 (`pm2 restart crossfit-back`) já cria as colunas novas no Supabase. As migrations em `src/migrations/` ficam só como documentação versionada do schema.
+- [ ] Confirmar no log do PM2 que apareceu a linha `Schema do banco sincronizado` após o restart:
+  ```bash
+  pm2 logs crossfit-back --lines 30 --nostream | grep -i "schema"
+  ```
+- [ ] Compatibilidade: as colunas são `nullable`/com `default`, então provas já existentes continuam funcionando sem edição (equivalem a "vale pra todas as categorias, ambos os sexos").
+- [ ] **Não rodar** `crossfit_back/scripts/seed-so-o-aco-2026.ts` em produção sem revisar antes — ele popula dados de teste (12 provas) no campeonato de slug fixo `aaaaa`, feito só pro ambiente local.
+- [ ] O DTO de inscrições (`ResponseInscricaoDto`) passou a expor `campeonato.status` — nenhuma migration envolvida, é só um campo a mais na resposta da API.
+
+---
+
 ## Atualizar após git push
 
 ```bash
