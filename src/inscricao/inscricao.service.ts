@@ -8,6 +8,8 @@ import { Campeonato } from '../campeonato/entities/campeonato.entity';
 import { UploadService } from '../upload/upload.service';
 import { NotificacoesService } from '../notificacoes/notificacoes.service';
 import { buildInscricoesWorkbook } from './inscricao-export.util';
+import { resolveCidade, resolveBox } from '../common/utils/dados-formulario.util';
+import { isSimilar, dedupeSimilarStrings } from '../common/utils/string-similarity.util';
 
 @Injectable()
 export class InscricaoService {
@@ -493,21 +495,23 @@ export class InscricaoService {
             sexo?: string;
             docs?: string;
             search?: string;
+            cidade?: string;
+            box?: string;
             page?: number;
             limit?: number;
         },
     ): Promise<{ data: Inscricao[]; total: number; page: number; limit: number; totalPages: number }> {
         const where: any = { campeonato: { id: campeonatoId }, isDeleted: false };
-        
+
         if (filtros?.status) where.status = filtros.status;
         if (filtros?.categoria) where.categoria = filtros.categoria;
         if (filtros?.modalidade) where.modalidade = filtros.modalidade;
-        
+
         if (filtros?.sexo) {
             // Supondo que a categoria inclua a palavra do sexo
             where.categoria = { $ilike: `%${filtros.sexo}%` };
         }
-        
+
         if (filtros?.search) {
             where.$or = [
                 { nomeAtleta: { $ilike: `%${filtros.search}%` } },
@@ -533,6 +537,32 @@ export class InscricaoService {
 
         const page = filtros?.page || 1;
         const limit = filtros?.limit || 10;
+
+        // Cidade/box vivem dentro do `dadosFormulario` (JSON livre) e são digitados de
+        // formas diferentes por cada atleta — não dá pra filtrar isso direto no SQL.
+        // Busca tudo que bate com os outros filtros e filtra/pagina em memória.
+        if (filtros?.cidade || filtros?.box) {
+            const todas = await this.inscricaoRepo.find(where, {
+                populate: ['usuario', 'campeonato'],
+                orderBy: { createdAt: 'DESC' },
+            });
+
+            let filtradas = todas;
+            if (filtros.cidade) {
+                filtradas = filtradas.filter((i) => isSimilar(resolveCidade(i.dadosFormulario) ?? '', filtros.cidade!));
+            }
+            if (filtros.box) {
+                filtradas = filtradas.filter((i) => isSimilar(resolveBox(i.dadosFormulario) ?? '', filtros.box!));
+            }
+
+            const total = filtradas.length;
+            const offset = (page - 1) * limit;
+            const data = filtradas.slice(offset, offset + limit);
+            await this.mapSignedUrls(data);
+
+            return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+        }
+
         const offset = (page - 1) * limit;
 
         const [inscricoes, total] = await this.inscricaoRepo.findAndCount(
@@ -556,6 +586,21 @@ export class InscricaoService {
         };
     }
 
+    /** Valores distintos (agrupando grafias parecidas) de cidade/box já cadastrados nesse campeonato — pros filtros do admin. */
+    async getOpcoesFiltro(campeonatoId: string): Promise<{ cidades: string[]; boxes: string[] }> {
+        const inscricoes = await this.inscricaoRepo.find(
+            { campeonato: { id: campeonatoId }, isDeleted: false },
+        );
+
+        const cidades = inscricoes.map((i) => resolveCidade(i.dadosFormulario)).filter((v): v is string => !!v);
+        const boxes = inscricoes.map((i) => resolveBox(i.dadosFormulario)).filter((v): v is string => !!v);
+
+        return {
+            cidades: dedupeSimilarStrings(cidades),
+            boxes: dedupeSimilarStrings(boxes),
+        };
+    }
+
     async findAllByCampeonato(
         campeonatoId: string,
         filtros?: {
@@ -565,6 +610,8 @@ export class InscricaoService {
             sexo?: string;
             docs?: string;
             search?: string;
+            cidade?: string;
+            box?: string;
         },
     ): Promise<Inscricao[]> {
         const where: any = { campeonato: { id: campeonatoId }, isDeleted: false };
@@ -599,10 +646,19 @@ export class InscricaoService {
             }
         }
 
-        return this.inscricaoRepo.find(where, {
+        let inscricoes = await this.inscricaoRepo.find(where, {
             populate: ['usuario', 'campeonato'],
             orderBy: { createdAt: 'DESC' },
         });
+
+        if (filtros?.cidade) {
+            inscricoes = inscricoes.filter((i) => isSimilar(resolveCidade(i.dadosFormulario) ?? '', filtros.cidade!));
+        }
+        if (filtros?.box) {
+            inscricoes = inscricoes.filter((i) => isSimilar(resolveBox(i.dadosFormulario) ?? '', filtros.box!));
+        }
+
+        return inscricoes;
     }
 
     async exportarCampeonatoXlsx(
@@ -614,6 +670,8 @@ export class InscricaoService {
             sexo?: string;
             docs?: string;
             search?: string;
+            cidade?: string;
+            box?: string;
         },
     ): Promise<{ buffer: Buffer; nomeArquivo: string }> {
         const campeonato = await this.campeonatoRepo.findOne({ id: campeonatoId });

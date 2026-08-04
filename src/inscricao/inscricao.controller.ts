@@ -221,6 +221,8 @@ export class InscricaoController {
     @ApiQuery({ name: 'sexo', required: false })
     @ApiQuery({ name: 'docs', required: false })
     @ApiQuery({ name: 'search', required: false })
+    @ApiQuery({ name: 'cidade', required: false })
+    @ApiQuery({ name: 'box', required: false })
     @ApiQuery({ name: 'page', required: false, type: Number })
     @ApiQuery({ name: 'limit', required: false, type: Number })
     async findByCampeonato(
@@ -231,6 +233,8 @@ export class InscricaoController {
         @Query('sexo') sexo?: string,
         @Query('docs') docs?: string,
         @Query('search') search?: string,
+        @Query('cidade') cidade?: string,
+        @Query('box') box?: string,
         @Query('page') page?: string,
         @Query('limit') limit?: string,
     ) {
@@ -241,6 +245,8 @@ export class InscricaoController {
             sexo,
             docs,
             search,
+            cidade,
+            box,
             page: page ? parseInt(page) : 1,
             limit: limit ? parseInt(limit) : 10,
         });
@@ -323,6 +329,14 @@ export class InscricaoController {
     @ApiBearerAuth('JWT-auth')
     @UseGuards(AuthGuard, RolesGuard)
     @Roles('admin', 'organizer')
+    @Get('campeonato/:campeonatoId/opcoes-filtro')
+    async opcoesFiltro(@Param('campeonatoId') campeonatoId: string) {
+        return this.inscricaoService.getOpcoesFiltro(campeonatoId);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard, RolesGuard)
+    @Roles('admin', 'organizer')
     @Get('campeonato/:campeonatoId/stats')
     async stats(@Param('campeonatoId') campeonatoId: string) {
         return this.inscricaoService.statsByCampeonato(campeonatoId);
@@ -338,6 +352,8 @@ export class InscricaoController {
     @ApiQuery({ name: 'sexo', required: false })
     @ApiQuery({ name: 'docs', required: false })
     @ApiQuery({ name: 'search', required: false })
+    @ApiQuery({ name: 'cidade', required: false })
+    @ApiQuery({ name: 'box', required: false })
     async exportar(
         @Param('campeonatoId') campeonatoId: string,
         @Res() res: Response,
@@ -347,10 +363,12 @@ export class InscricaoController {
         @Query('sexo') sexo?: string,
         @Query('docs') docs?: string,
         @Query('search') search?: string,
+        @Query('cidade') cidade?: string,
+        @Query('box') box?: string,
     ) {
         const { buffer, nomeArquivo } = await this.inscricaoService.exportarCampeonatoXlsx(
             campeonatoId,
-            { status, categoria, modalidade, sexo, docs, search },
+            { status, categoria, modalidade, sexo, docs, search, cidade, box },
         );
 
         res.set({

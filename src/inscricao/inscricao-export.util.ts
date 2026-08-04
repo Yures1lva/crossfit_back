@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
 import { Inscricao } from './entities/inscricao.entity';
 import { ResponseInscricaoDto } from './dto/response-inscricao.dto';
+import { resolveCidade, resolveBox } from '../common/utils/dados-formulario.util';
 
 const COLORS = {
     bgPrimary: 'FF1A1A1B',
@@ -19,6 +20,7 @@ const COLUMNS = [
     { header: 'Email', key: 'email', width: 30 },
     { header: 'Categoria', key: 'categoria', width: 20 },
     { header: 'Cidade', key: 'cidade', width: 22 },
+    { header: 'Box', key: 'box', width: 22 },
     { header: 'Telefone', key: 'telefone', width: 20 },
 ];
 
@@ -80,7 +82,8 @@ export async function buildInscricoesWorkbook(
     let rowIndex = 0;
 
     for (const inscricao of inscricoes) {
-        const cidade = ResponseInscricaoDto.resolveCidade(inscricao) ?? '';
+        const cidade = resolveCidade(inscricao.dadosFormulario) ?? '';
+        const box = resolveBox(inscricao.dadosFormulario) ?? '';
         const telefone = ResponseInscricaoDto.resolvePhone(inscricao) ?? '';
 
         rowIndex++;
@@ -90,6 +93,7 @@ export async function buildInscricoesWorkbook(
             email: inscricao.email ?? '',
             categoria: inscricao.categoria ?? '',
             cidade,
+            box,
             telefone,
         });
 
@@ -101,6 +105,7 @@ export async function buildInscricoesWorkbook(
                 email: inscricao.email ?? '',
                 categoria: inscricao.categoria ?? '',
                 cidade,
+                box,
                 telefone: parceiro.telefone || telefone,
             });
         }

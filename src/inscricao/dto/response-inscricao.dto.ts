@@ -1,3 +1,5 @@
+import { resolveCidade, resolveBox } from '../../common/utils/dados-formulario.util';
+
 export class ResponseInscricaoDto {
     id: string;
     status: string;
@@ -36,6 +38,8 @@ export class ResponseInscricaoDto {
     termoUpdatedAt?: Date;
     telefone?: string;
     telefoneResolvido?: string;
+    cidade?: string;
+    box?: string;
     valorPago?: number;
     loteNome?: string;
     createdAt: Date;
@@ -54,6 +58,8 @@ export class ResponseInscricaoDto {
         this.nomeAtleta = entity.nomeAtleta;
         this.dadosFormulario = entity.dadosFormulario;
         this.telefoneResolvido = ResponseInscricaoDto.resolvePhone(entity);
+        this.cidade = resolveCidade(entity.dadosFormulario);
+        this.box = resolveBox(entity.dadosFormulario);
         this.categoria = entity.categoria;
         this.modalidade = entity.modalidade;
         this.tamanhoCamisa = entity.tamanhoCamisa;
@@ -108,16 +114,6 @@ export class ResponseInscricaoDto {
             if (key) return String(entity.dadosFormulario[key]);
         }
         if (entity.usuario?.telefone) return entity.usuario.telefone;
-        return undefined;
-    }
-
-    static resolveCidade(entity: any): string | undefined {
-        if (entity.dadosFormulario) {
-            const key = Object.keys(entity.dadosFormulario).find((k: string) =>
-                /cidade|city/i.test(k),
-            );
-            if (key) return String(entity.dadosFormulario[key]);
-        }
         return undefined;
     }
 }
