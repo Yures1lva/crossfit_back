@@ -84,13 +84,18 @@ export class BateriaService {
         const [modalidade, ...restCategoria] = categoriaKey.split('|');
         const categoria = restCategoria.join('|');
 
-        const inscricoes = await inscricaoRepo.find({
-            campeonato: { id: campeonatoId },
-            isDeleted: false,
-            status: 'approved' as any,
-            modalidade,
-            categoria,
-        } as any);
+        // Últimos inscritos entram como primeiros colocados (raia 1 / Bateria 1);
+        // primeiros inscritos ficam como últimos colocados.
+        const inscricoes = await inscricaoRepo.find(
+            {
+                campeonato: { id: campeonatoId },
+                isDeleted: false,
+                status: 'approved' as any,
+                modalidade,
+                categoria,
+            } as any,
+            { orderBy: { createdAt: 'DESC' } },
+        );
 
         // Soft-deleta baterias existentes desta prova+categoria via SQL direto
         await this.em.nativeUpdate(
