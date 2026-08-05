@@ -108,6 +108,8 @@ export class PontuacaoService {
         // Monta linha por atleta
         const rows = Array.from(inscricoesDaCategoria.values()).map((insc) => {
             const pontosPorProva: Record<string, number | null> = {};
+            // Valor bruto que o atleta fez na prova, já formatado (ex: "6:41", "188 reps", "141 kg")
+            const valoresPorProva: Record<string, string | null> = {};
             let totalPontos = 0;
 
             provas.forEach((prova) => {
@@ -116,6 +118,7 @@ export class PontuacaoService {
                 );
                 const pts = pont?.pontos ?? null;
                 pontosPorProva[prova.id] = pts;
+                valoresPorProva[prova.id] = pont?.valorDisplay ?? null;
                 if (pts !== null) totalPontos += pts;
             });
 
@@ -127,6 +130,7 @@ export class PontuacaoService {
                 box: (insc.dadosFormulario as any)?.box ?? '',
                 parceiros: insc.parceiros,
                 pontosPorProva,
+                valoresPorProva,
                 totalPontos,
             };
         });
