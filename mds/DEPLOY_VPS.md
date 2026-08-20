@@ -130,6 +130,25 @@ docker compose restart nginx
 
 ---
 
+## Notas de deploy — mudanças de banco (módulo gerenciar campeonato + Prova: categorias/sexo/horário)
+
+Esse merge traz pra produção, pela primeira vez, o módulo inteiro de "gerenciar campeonato ao vivo" (Provas, Pontuação, Baterias/Cronograma, Contestações) e os ajustes de Prova feitos depois. Isso cria **4 tabelas novas** (`prova`, `pontuacao`, `bateria`, `contestacao`) e adiciona 3 colunas na tabela `prova`:
+
+| Coluna | Tipo | Default | Migration |
+|--------|------|---------|-----------|
+| `categorias` | `jsonb`, nullable | `null` (= vale pra todas as categorias) | `Migration20260720000000.ts` |
+| `sexo` | `varchar(255)` | `'ambos'` | `Migration20260720000000.ts` |
+| `hora_inicio` | `varchar(255)`, nullable | `null` | `Migration20260721000000.ts` |
+
+- [ ] **Não precisa rodar migration manualmente.** O backend sincroniza o schema sozinho no boot (`generator.updateSchema({ safe: true, dropTables: false })` em `main.ts`) — só reiniciar o container `app` já cria as tabelas/colunas novas no Supabase. As migrations em `src/migrations/` ficam só como documentação versionada do schema.
+- [ ] Confirmar no log do `app` (`docker compose logs app --tail 50`) que apareceu `Schema do banco sincronizado` e o mapeamento das rotas novas (`/api/v1/provas`, `/api/v1/pontuacoes`, `/api/v1/baterias`, `/api/v1/contestacoes`) — é o sinal de que os módulos novos subiram certo.
+- [ ] Compatibilidade: as colunas de `prova` são `nullable`/com `default`; as tabelas novas são 100% aditivas — nada em dado existente é alterado.
+- [ ] **Não rodar** `crossfit_back/scripts/seed-so-o-aco-2026.ts` em produção sem revisar antes — ele popula dados de teste (12 provas) no campeonato de slug fixo `aaaaa`, feito só pro ambiente local.
+- [ ] O DTO de inscrições (`ResponseInscricaoDto`) passou a expor `campeonato.status` — nenhuma migration envolvida, é só um campo a mais na resposta da API.
+- [ ] `whatsapp-bridge/index.js` também mudou nesse merge (correções de estabilidade da sessão) — inclua `whatsapp-bridge` no rebuild desta vez, não só `app`/`frontend`.
+
+---
+
 ## DNS
 
 | Tipo | Nome  | Valor     | TTL |

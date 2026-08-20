@@ -16,6 +16,10 @@ import { LoteModule }          from './lote/lote.module';
 import { CidadeModule }        from './cidade/cidade.module';
 import { WhatsappModule }      from './whatsapp/whatsapp.module';
 import { NotificacoesModule }  from './notificacoes/notificacoes.module';
+import { ProvaModule }         from './prova/prova.module';
+import { PontuacaoModule }     from './pontuacao/pontuacao.module';
+import { BateriaModule }       from './bateria/bateria.module';
+import { ContestacaoModule }   from './contestacao/contestacao.module';
 
 @Module({
   imports: [
@@ -40,6 +44,10 @@ import { NotificacoesModule }  from './notificacoes/notificacoes.module';
     LoteModule,
     CidadeModule,
     NotificacoesModule,
+    ProvaModule,
+    PontuacaoModule,
+    BateriaModule,
+    ContestacaoModule,
   ],
 })
 export class AppModule { }
