@@ -98,8 +98,8 @@ Agora que banco e storage moram na mesma VPS, backup **fora da VPS** deixa de se
 
 ## Ordem de execução resumida
 
-1. [ ] Backup completo do Supabase (banco + storage) guardado fora da VPS.
-2. [ ] Subir Postgres containerizado, restaurar dados, validar contagens.
+1. [x] Backup completo do Supabase (banco + storage) guardado fora da VPS. — feito 2026-09-10 (dump 343KB + storage 402 arquivos/322.62MB)
+2. [x] Subir Postgres containerizado, restaurar dados, validar contagens. — feito 2026-09-10, contagens batendo 1:1 com o Supabase (usuario=134, campeonato=2, inscricao=105, cidade=24, notificacao=73; prova/pontuacao/bateria/contestacao/lote=0 em ambos)
 3. [ ] Subir Appwrite self-hosted, criar buckets + API key.
 4. [ ] Implementar `AppwriteStorageProvider` + branch no provider factory.
 5. [ ] Migrar arquivos Supabase → Appwrite + atualizar URLs no banco.
