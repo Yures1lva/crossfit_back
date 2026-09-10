@@ -2,7 +2,13 @@ import 'dotenv/config';
 import { MikroOrmModuleOptions } from '@mikro-orm/nestjs';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 
-const isRemoteDb = !['localhost', '127.0.0.1'].includes(process.env.DB_HOST || 'localhost');
+// DB_SSL explícito tem prioridade; sem ele, infere pelo host (compat com configs antigas).
+// Necessário porque bancos containerizados na mesma rede Docker (ex: DB_HOST=postgres)
+// não têm SSL configurado, mas não são "localhost" — a inferência sozinha erraria aqui.
+const isRemoteDb =
+    process.env.DB_SSL !== undefined
+        ? process.env.DB_SSL === 'true'
+        : !['localhost', '127.0.0.1'].includes(process.env.DB_HOST || 'localhost');
 
 const config: MikroOrmModuleOptions = {
     entities: ['./dist/**/*.entity.js'],
