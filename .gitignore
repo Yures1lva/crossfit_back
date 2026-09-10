@@ -30,3 +30,6 @@ coverage/
 # Temp
 tmp/
 temp/
+
+# Backups locais (Fase 1 da migração) — nunca commitar
+backups/
