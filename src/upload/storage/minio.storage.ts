@@ -14,6 +14,9 @@ export class MinioStorageProvider implements StorageProvider {
     private readonly publicUrlBase: string;
     private readonly bucketsEnsured = new Set<string>();
 
+    /** Buckets que devem ficar privados (acesso só via getSignedUrl, nunca policy pública). */
+    private readonly privateBuckets = new Set(['comprovantes']);
+
     constructor() {
         const endPoint = process.env.MINIO_ENDPOINT;
         const port = Number(process.env.MINIO_PORT || 9000);
@@ -44,8 +47,12 @@ export class MinioStorageProvider implements StorageProvider {
             this.logger.log(`Bucket criado: ${bucket}`);
         }
 
-        // Leitura pública por padrão — buckets sensíveis (ex: comprovantes) devem
-        // usar getSignedUrl() no lugar de getPublicUrl() na camada de cima.
+        if (this.privateBuckets.has(bucket)) {
+            this.bucketsEnsured.add(bucket);
+            return;
+        }
+
+        // Leitura pública para os demais — acessados direto por getPublicUrl().
         const policy = {
             Version: '2012-10-17',
             Statement: [
