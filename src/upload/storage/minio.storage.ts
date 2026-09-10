@@ -11,6 +11,13 @@ import { StorageProvider } from './storage.interface';
 export class MinioStorageProvider implements StorageProvider {
     private readonly logger = new Logger(MinioStorageProvider.name);
     private readonly client: Client;
+    /** Client separado, configurado com o endpoint PÚBLICO — só usado pra assinar
+     * signed URLs, já que essas precisam ser abertas direto pelo navegador do
+     * usuário (o client principal aponta pro endpoint interno da rede Docker,
+     * que não é alcançável de fora). O nginx repassa o Host original recebido,
+     * então a assinatura calculada com o host público continua válida ao chegar
+     * no MinIO — mesmo o request tendo passado pelo proxy. */
+    private readonly signingClient: Client;
     private readonly publicUrlBase: string;
     private readonly bucketsEnsured = new Set<string>();
 
@@ -33,6 +40,16 @@ export class MinioStorageProvider implements StorageProvider {
         this.client = new Client({ endPoint, port, useSSL, accessKey, secretKey });
         this.publicUrlBase =
             process.env.MINIO_PUBLIC_URL || `${useSSL ? 'https' : 'http'}://${endPoint}:${port}`;
+
+        const publicUrl = new URL(this.publicUrlBase);
+        const publicUseSSL = publicUrl.protocol === 'https:';
+        this.signingClient = new Client({
+            endPoint: publicUrl.hostname,
+            port: publicUrl.port ? Number(publicUrl.port) : publicUseSSL ? 443 : 80,
+            useSSL: publicUseSSL,
+            accessKey,
+            secretKey,
+        });
 
         this.logger.log('MinIO Storage inicializado');
     }
@@ -88,7 +105,7 @@ export class MinioStorageProvider implements StorageProvider {
 
     async getSignedUrl(bucket: string, filePath: string, expiresIn = 3600): Promise<string> {
         try {
-            return await this.client.presignedGetObject(bucket, filePath, expiresIn);
+            return await this.signingClient.presignedGetObject(bucket, filePath, expiresIn);
         } catch (err) {
             this.logger.error(`Signed URL falhou [${bucket}/${filePath}]: ${err.message}`);
             throw new Error(`MinIO signed URL error: ${err.message}`);
