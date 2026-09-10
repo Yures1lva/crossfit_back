@@ -1,7 +1,7 @@
 import { Logger, Module } from '@nestjs/common';
 import { UploadService } from './upload.service';
 import { UploadController } from './upload.controller';
-import { STORAGE_PROVIDER, LocalStorageProvider, SupabaseStorageProvider } from './storage';
+import { STORAGE_PROVIDER, LocalStorageProvider, SupabaseStorageProvider, MinioStorageProvider } from './storage';
 
 const logger = new Logger('UploadModule');
 
@@ -16,6 +16,9 @@ const logger = new Logger('UploadModule');
 
                 if (driver === 'supabase') {
                     return new SupabaseStorageProvider();
+                }
+                if (driver === 'minio') {
+                    return new MinioStorageProvider();
                 }
                 return new LocalStorageProvider();
             },
