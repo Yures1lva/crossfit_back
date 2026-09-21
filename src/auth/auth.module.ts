@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { AuthCookieService } from './auth-cookie.service';
 import { RefreshTokenGuard } from './guards/refresh-token.guard';
 import { UsuarioModule } from '../usuario/usuario.module';
 import { InscricaoModule } from '../inscricao/inscricao.module';
@@ -25,7 +26,7 @@ import { InscricaoModule } from '../inscricao/inscricao.module';
         forwardRef(() => InscricaoModule),
     ],
     controllers: [AuthController],
-    providers: [AuthService, RefreshTokenGuard],
-    exports: [AuthService, JwtModule],
+    providers: [AuthService, AuthCookieService, RefreshTokenGuard],
+    exports: [AuthService, AuthCookieService, JwtModule],
 })
 export class AuthModule { }

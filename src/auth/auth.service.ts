@@ -90,13 +90,57 @@ export class AuthService {
             throw new UnauthorizedException('Acesso negado');
         }
 
+        // Uma conta desabilitada depois do login não pode continuar renovando a sessão.
+        if (usuario.isDisabled) {
+            throw new UnauthorizedException('Usuário desabilitado');
+        }
+
         const matches = await bcrypt.compare(refreshToken, usuario.refreshToken);
         if (!matches) {
             throw new UnauthorizedException('Acesso negado');
         }
 
         const payload = { sub: usuario.id, role: usuario.role };
-        return { access_token: this.jwtService.sign(payload as any) };
+        return {
+            access_token: this.jwtService.sign(payload as any),
+            usuario: this.toSessionUser(usuario),
+        };
+    }
+
+    /** Projeção pública do usuário — o que a sessão do cliente precisa conhecer. */
+    private toSessionUser(usuario: any) {
+        return {
+            id: usuario.id,
+            nome: usuario.nome,
+            email: usuario.email,
+            cpf: usuario.cpf || '',
+            role: usuario.role,
+        };
+    }
+
+    async getSessionUser(userId: string) {
+        const usuario = await this.usuarioService.findOne(userId);
+        // O token é válido, mas o usuário sumiu ou foi desabilitado desde que ele foi emitido.
+        if (!usuario || usuario.isDisabled) {
+            throw new UnauthorizedException('Sessão inválida');
+        }
+        return this.toSessionUser(usuario);
+    }
+
+    /**
+     * Revoga o refresh token no banco durante o logout. Best-effort: se o token já
+     * está expirado ou ausente, o logout segue mesmo assim limpando os cookies.
+     */
+    async revokeSession(refreshToken?: string): Promise<void> {
+        if (!refreshToken) return;
+        try {
+            const payload = await this.jwtService.verifyAsync(refreshToken, {
+                secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+            });
+            await this.usuarioService.updateRefreshToken(payload.sub, null);
+        } catch {
+            // Token inválido/expirado: não há sessão a revogar.
+        }
     }
 
     /** Verifica se já existe conta com o e-mail informado */

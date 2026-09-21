@@ -89,8 +89,8 @@ Agora que banco e storage moram na mesma VPS, backup **fora da VPS** deixa de se
 2. [x] Subir Postgres containerizado, restaurar dados, validar contagens. — feito 2026-09-10, contagens batendo 1:1 com o Supabase
 3. [x] Subir MinIO self-hosted, criar buckets. — feito 2026-09-10 (Appwrite tentado antes e descartado por peso — ver "Decisões já tomadas")
 4. [x] Implementar `MinioStorageProvider` + branch no provider factory. — feito 2026-09-10
-5. [ ] Migrar arquivos do backup local → MinIO + atualizar URLs no banco.
-6. [ ] Trocar env vars, rebuild `app`, smoke test completo.
-7. [ ] Manter Supabase pausado por 2 semanas de segurança.
-8. [ ] Configurar backup automático (Postgres + volume MinIO) pra fora da VPS.
+5. [x] Migrar arquivos do backup local → MinIO + atualizar URLs no banco. — feito 2026-09-10, 402 arquivos migrados e validados contra cada referência no banco (zero ausentes); 3 URLs completas corrigidas (2x foto_atleta_url, 1x campeonato regulamento/termo).
+6. [x] Trocar env vars, rebuild `app`, smoke test completo. — feito 2026-09-10. Bugs encontrados e corrigidos no processo: (a) SSL forçado por engano pro Postgres interno — corrigido com `DB_SSL` explícito; (b) `getSignedUrl()` gerava URL com endpoint interno (`minio:9000`), inacessível pelo navegador — corrigido com client de assinatura separado usando o endpoint público. Smoke test real: API respondendo, documentos abrindo (público e signed URL), upload novo funcionando.
+7. [ ] Configurar backup automático (Postgres + volume MinIO) pra fora da VPS.
+8. [ ] Manter Supabase pausado por 2 semanas de segurança.
 9. [ ] Desligar Supabase.

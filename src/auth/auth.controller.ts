@@ -9,9 +9,10 @@ import {
     HttpCode,
     HttpStatus,
 } from '@nestjs/common';
-import type { Response, CookieOptions } from 'express';
+import type { Response } from 'express';
 import { ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { AuthCookieService, AUTH_COOKIE } from './auth-cookie.service';
 import { SignInDto } from './dto/signin.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -22,28 +23,10 @@ import { RefreshTokenGuard } from './guards/refresh-token.guard';
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-    private isProd = process.env.NODE_ENV === 'production';
-
-    constructor(private authService: AuthService) {}
-
-    /** Opções de cookie — first-party seguro com domínio compartilhado (.sooacosports.com.br) */
-    private cookieOpts(maxAge: number, httpOnly = true): CookieOptions {
-        return {
-            httpOnly,
-            secure: this.isProd,
-            sameSite: 'lax',
-            maxAge,
-            domain: this.isProd ? (process.env.COOKIE_DOMAIN || '.sooacosports.com.br') : undefined,
-        };
-    }
-
-    /** Seta os 3 cookies padrão (access, refresh, role) */
-    private setAuthCookies(res: Response, result: any) {
-        res.cookie('access_token', result.access_token, this.cookieOpts(15 * 60 * 1000));
-        res.cookie('refresh_token', result.refresh_token, this.cookieOpts(7 * 24 * 60 * 60 * 1000));
-        // user_role: não-httpOnly (middleware Next.js precisa ler)
-        res.cookie('user_role', result.usuario.role, this.cookieOpts(7 * 24 * 60 * 60 * 1000, false));
-    }
+    constructor(
+        private authService: AuthService,
+        private cookies: AuthCookieService,
+    ) {}
 
     @HttpCode(HttpStatus.OK)
     @Post('login')
@@ -52,7 +35,7 @@ export class AuthController {
         @Res({ passthrough: true }) res: Response,
     ) {
         const result = await this.authService.signIn(dto.email, dto.password);
-        this.setAuthCookies(res, result);
+        this.cookies.setSession(res, { ...result, role: result.usuario.role });
 
         // NUNCA retornar tokens no body
         return { usuario: result.usuario };
@@ -64,11 +47,12 @@ export class AuthController {
         @Res({ passthrough: true }) res: Response,
     ) {
         const result = await this.authService.register(dto.nome, dto.email, dto.password, dto.cpf);
-        this.setAuthCookies(res, result);
+        this.cookies.setSession(res, { ...result, role: result.usuario.role });
         return { usuario: result.usuario };
     }
 
     @UseGuards(RefreshTokenGuard)
+    @HttpCode(HttpStatus.OK)
     @Post('refresh')
     async refreshTokens(
         @Request() req,
@@ -77,24 +61,27 @@ export class AuthController {
         const userId = req.usuario.sub;
         const refreshToken =
             req.headers.authorization?.split(' ')[1] ??
-            req.cookies?.refresh_token;
+            req.cookies?.[AUTH_COOKIE.REFRESH];
 
-        const { access_token } = await this.authService.refreshTokens(
+        const { access_token, usuario } = await this.authService.refreshTokens(
             userId,
             refreshToken,
         );
 
-        res.cookie('access_token', access_token, this.cookieOpts(15 * 60 * 1000));
-        return { access_token };
+        this.cookies.setAccessToken(res, access_token);
+
+        // O cliente usa isso para reidratar a sessão sem uma segunda ida ao servidor.
+        return { usuario };
     }
 
-    @HttpCode(200)
+    @HttpCode(HttpStatus.OK)
     @Post('logout')
-    logout(@Res({ passthrough: true }) res: Response) {
-        const opts = this.cookieOpts(0);
-        res.clearCookie('access_token', opts);
-        res.clearCookie('refresh_token', opts);
-        res.clearCookie('user_role', opts);
+    async logout(@Request() req, @Res({ passthrough: true }) res: Response) {
+        // Best-effort: mesmo com o access token já expirado conseguimos identificar o
+        // usuário pelo refresh token e revogar a sessão no banco. Sem isso o hash
+        // continuaria válido por 7 dias após o logout.
+        await this.authService.revokeSession(req.cookies?.[AUTH_COOKIE.REFRESH]);
+        this.cookies.clear(res);
         return { success: true };
     }
 
@@ -121,9 +108,13 @@ export class AuthController {
         return { message: 'Senha redefinida com sucesso.' };
     }
 
+    /**
+     * Perfil da sessão atual. Devolve o usuário completo (e não o payload cru do JWT),
+     * porque o cliente usa esta resposta para reidratar o store depois de um reload.
+     */
     @UseGuards(AuthGuard)
     @Get('profile')
     getProfile(@Request() req) {
-        return req.usuario;
+        return this.authService.getSessionUser(req.usuario.sub);
     }
 }
