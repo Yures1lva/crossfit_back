@@ -1,4 +1,5 @@
 import { resolveCidade, resolveBox } from '../../common/utils/dados-formulario.util';
+import { qtdAtletasDaInscricao, resumoDocumentos } from '../inscricao-docs.util';
 
 export class ResponseInscricaoDto {
     id: string;
@@ -36,6 +37,12 @@ export class ResponseInscricaoDto {
     documentoIdentidadeUpdatedAt?: Date;
     termoUrl?: string;
     termoUpdatedAt?: Date;
+    /** Atletas cobertos pela inscrição (titular + parceiros, inclusive os ainda não cadastrados) */
+    qtdAtletas: number;
+    /** Documentos da equipe inteira — 3 por atleta */
+    docsEnviados: number;
+    docsTotal: number;
+    docsPendentes: string[];
     telefone?: string;
     telefoneResolvido?: string;
     cidade?: string;
@@ -80,6 +87,11 @@ export class ResponseInscricaoDto {
         this.documentoIdentidadeUpdatedAt = entity.documentoIdentidadeUpdatedAt;
         this.termoUrl = entity.termoUrl;
         this.termoUpdatedAt = entity.termoUpdatedAt;
+        this.qtdAtletas = qtdAtletasDaInscricao(entity);
+        const docs = resumoDocumentos(entity);
+        this.docsEnviados = docs.enviados;
+        this.docsTotal = docs.total;
+        this.docsPendentes = docs.pendentes;
         this.valorPago = entity.valorPago;
         this.loteNome = entity.loteNome;
         this.createdAt = entity.createdAt;

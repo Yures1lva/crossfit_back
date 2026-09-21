@@ -10,6 +10,18 @@ import { NotificacoesService } from '../notificacoes/notificacoes.service';
 import { buildInscricoesWorkbook } from './inscricao-export.util';
 import { resolveCidade, resolveBox } from '../common/utils/dados-formulario.util';
 import { isSimilar, dedupeSimilarStrings } from '../common/utils/string-similarity.util';
+import { CAMPOS_DOCUMENTO, resumoDocumentos } from './inscricao-docs.util';
+
+interface FiltrosInscricao {
+    status?: string;
+    categoria?: string;
+    modalidade?: string;
+    sexo?: string;
+    docs?: string;
+    search?: string;
+    cidade?: string;
+    box?: string;
+}
 
 @Injectable()
 export class InscricaoService {
@@ -64,40 +76,61 @@ export class InscricaoService {
         return { valor, loteNome: camp.loteNome };
     }
 
-    /** Mapeia a URL do comprovante, documentos e fotos para Signed URLs, se necessário */
+    /**
+     * Converte a chave salva no banco numa Signed URL. Também aceita uma Signed URL que foi
+     * persistida por engano (já expirada): extrai a chave do path e assina de novo.
+     */
+    private async assinarArquivo(bucket: string, valor: string | undefined): Promise<string | undefined> {
+        if (!valor) return valor;
+
+        let chave = valor;
+        if (valor.startsWith('http')) {
+            try {
+                const url = new URL(valor);
+                const prefixo = `/${bucket}/`;
+                const inicio = url.pathname.indexOf(prefixo);
+                const isAssinada = url.searchParams.has('X-Amz-Signature') || url.searchParams.has('token');
+                if (!isAssinada || inicio < 0) return valor;
+                chave = decodeURIComponent(url.pathname.slice(inicio + prefixo.length));
+            } catch {
+                return valor;
+            }
+        }
+
+        return this.uploadService.getSignedUrl(bucket, chave, 3600).catch(() => valor);
+    }
+
+    /**
+     * Mapeia a URL do comprovante, documentos (titular e parceiros) e fotos para Signed URLs.
+     * Só para a resposta — chamar depois do último flush da requisição, senão a URL temporária vai pro banco.
+     */
     private async mapSignedUrls(inscricoes: Inscricao | Inscricao[]): Promise<void> {
         const items = Array.isArray(inscricoes) ? inscricoes : [inscricoes];
 
         const signOne = async (inscricao: Inscricao) => {
             const tasks: Promise<void>[] = [];
 
-            if (inscricao.comprovanteUrl && !inscricao.comprovanteUrl.startsWith('http')) {
+            tasks.push(
+                this.assinarArquivo('comprovantes', inscricao.comprovanteUrl)
+                    .then(url => { inscricao.comprovanteUrl = url; }),
+            );
+            for (const campo of CAMPOS_DOCUMENTO) {
                 tasks.push(
-                    this.uploadService.getSignedUrl('comprovantes', inscricao.comprovanteUrl, 3600)
-                        .then(url => { inscricao.comprovanteUrl = url; })
-                        .catch(() => {}),
+                    this.assinarArquivo('documentos', inscricao[campo])
+                        .then(url => { inscricao[campo] = url; }),
                 );
             }
-            if (inscricao.laudoMedicoUrl && !inscricao.laudoMedicoUrl.startsWith('http')) {
-                tasks.push(
-                    this.uploadService.getSignedUrl('documentos', inscricao.laudoMedicoUrl, 3600)
-                        .then(url => { inscricao.laudoMedicoUrl = url; })
-                        .catch(() => {}),
-                );
-            }
-            if (inscricao.documentoIdentidadeUrl && !inscricao.documentoIdentidadeUrl.startsWith('http')) {
-                tasks.push(
-                    this.uploadService.getSignedUrl('documentos', inscricao.documentoIdentidadeUrl, 3600)
-                        .then(url => { inscricao.documentoIdentidadeUrl = url; })
-                        .catch(() => {}),
-                );
-            }
-            if (inscricao.termoUrl && !inscricao.termoUrl.startsWith('http')) {
-                tasks.push(
-                    this.uploadService.getSignedUrl('documentos', inscricao.termoUrl, 3600)
-                        .then(url => { inscricao.termoUrl = url; })
-                        .catch(() => {}),
-                );
+            if (inscricao.parceiros?.length) {
+                const parceiros = inscricao.parceiros.map(p => ({ ...p }));
+                for (const parceiro of parceiros) {
+                    for (const campo of CAMPOS_DOCUMENTO) {
+                        tasks.push(
+                            this.assinarArquivo('documentos', parceiro[campo])
+                                .then(url => { parceiro[campo] = url; }),
+                        );
+                    }
+                }
+                inscricao.parceiros = parceiros;
             }
             if (inscricao.fotosAtletas?.length) {
                 inscricao.fotosAtletas = inscricao.fotosAtletas.map(f =>
@@ -377,6 +410,7 @@ export class InscricaoService {
         inscricao.comprovanteUpdateCount += 1;
 
         await this.em.flush();
+        await this.mapSignedUrls(inscricao);
         return inscricao;
     }
 
@@ -416,6 +450,7 @@ export class InscricaoService {
         inscricao.fotosUpdateCount += 1;
 
         await this.em.flush();
+        await this.mapSignedUrls(inscricao);
         return inscricao;
     }
 
@@ -430,8 +465,9 @@ export class InscricaoService {
             isDeleted: false,
         });
         if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
-        inscricao.parceiros = parceiros;
+        inscricao.parceiros = this.mesclarParceiros(inscricao.parceiros, parceiros);
         await this.em.flush();
+        await this.mapSignedUrls(inscricao);
         return inscricao;
     }
 
@@ -441,9 +477,44 @@ export class InscricaoService {
     ): Promise<Inscricao> {
         const inscricao = await this.inscricaoRepo.findOne({ id, isDeleted: false });
         if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
-        inscricao.parceiros = parceiros;
+        inscricao.parceiros = this.mesclarParceiros(inscricao.parceiros, parceiros);
         await this.em.flush();
+        await this.mapSignedUrls(inscricao);
         return inscricao;
+    }
+
+    /**
+     * Aplica os dados editados dos parceiros sem perder os documentos que eles já enviaram.
+     * Só nome/CPF/telefone/camisa vêm do cliente (URLs recebidas seriam as assinadas, que expiram).
+     * O parceiro é reconhecido pelo CPF; se o CPF mudou mas o nome na mesma posição é o mesmo,
+     * é correção de digitação e os documentos continuam com ele.
+     */
+    private mesclarParceiros(
+        atuais: Inscricao['parceiros'],
+        novos: { nome: string; cpf: string; telefone: string; tamanhoCamisa: string }[],
+    ): NonNullable<Inscricao['parceiros']> {
+        const existentes = atuais ?? [];
+        const mesmoNome = (a?: string, b?: string) =>
+            !!a?.trim() && a.trim().toLowerCase() === b?.trim().toLowerCase();
+
+        return novos.map((novo, idx) => {
+            const anterior =
+                existentes.find((p) => p.cpf && p.cpf === novo.cpf) ??
+                (mesmoNome(existentes[idx]?.nome, novo.nome) ? existentes[idx] : undefined);
+
+            return {
+                laudoMedicoUrl: anterior?.laudoMedicoUrl,
+                laudoMedicoUpdatedAt: anterior?.laudoMedicoUpdatedAt,
+                documentoIdentidadeUrl: anterior?.documentoIdentidadeUrl,
+                documentoIdentidadeUpdatedAt: anterior?.documentoIdentidadeUpdatedAt,
+                termoUrl: anterior?.termoUrl,
+                termoUpdatedAt: anterior?.termoUpdatedAt,
+                nome: novo.nome,
+                cpf: novo.cpf,
+                telefone: novo.telefone,
+                tamanhoCamisa: novo.tamanhoCamisa,
+            };
+        });
     }
 
     async atualizarDadosAdmin(
@@ -455,6 +526,7 @@ export class InscricaoService {
         if (dados.categoria !== undefined) inscricao.categoria = dados.categoria;
         if (dados.tamanhoCamisa !== undefined) inscricao.tamanhoCamisa = dados.tamanhoCamisa;
         await this.em.flush();
+        await this.mapSignedUrls(inscricao);
         return inscricao;
     }
 
@@ -486,21 +558,8 @@ export class InscricaoService {
 
     // ── Admin ─────────────────────────────────
 
-    async findByCampeonato(
-        campeonatoId: string,
-        filtros?: {
-            status?: string;
-            categoria?: string;
-            modalidade?: string;
-            sexo?: string;
-            docs?: string;
-            search?: string;
-            cidade?: string;
-            box?: string;
-            page?: number;
-            limit?: number;
-        },
-    ): Promise<{ data: Inscricao[]; total: number; page: number; limit: number; totalPages: number }> {
+    /** Filtros que dá pra aplicar direto no SQL. Docs, cidade e box são resolvidos em memória (ver `filtrarEmMemoria`). */
+    private montarWhereCampeonato(campeonatoId: string, filtros?: FiltrosInscricao): any {
         const where: any = { campeonato: { id: campeonatoId }, isDeleted: false };
 
         if (filtros?.status) where.status = filtros.status;
@@ -520,50 +579,55 @@ export class InscricaoService {
             ];
         }
 
-        if (filtros?.docs) {
-            // docs === 'ok' (all docs present) or docs === 'pendente'
-            if (filtros.docs === 'ok') {
-                where.laudoMedicoUrl = { $ne: null };
-                where.documentoIdentidadeUrl = { $ne: null };
-                where.termoUrl = { $ne: null };
-            } else if (filtros.docs === 'pendente') {
-                where.$or = [
-                    { laudoMedicoUrl: null },
-                    { documentoIdentidadeUrl: null },
-                    { termoUrl: null },
-                ];
-            }
-        }
+        return where;
+    }
 
+    /**
+     * Cidade/box vivem dentro do `dadosFormulario` (JSON livre) e são digitados de formas diferentes
+     * por cada atleta; os documentos dos parceiros ficam no JSON `parceiros` e dependem do tamanho da
+     * equipe. Nada disso dá pra filtrar direto no SQL.
+     */
+    private filtrarEmMemoria(inscricoes: Inscricao[], filtros?: FiltrosInscricao): Inscricao[] {
+        let filtradas = inscricoes;
+        if (filtros?.cidade) {
+            filtradas = filtradas.filter((i) => isSimilar(resolveCidade(i.dadosFormulario) ?? '', filtros.cidade!));
+        }
+        if (filtros?.box) {
+            filtradas = filtradas.filter((i) => isSimilar(resolveBox(i.dadosFormulario) ?? '', filtros.box!));
+        }
+        if (filtros?.docs === 'ok' || filtros?.docs === 'pendente') {
+            const querCompletos = filtros.docs === 'ok';
+            filtradas = filtradas.filter((i) => {
+                const { enviados, total } = resumoDocumentos(i);
+                return (enviados === total) === querCompletos;
+            });
+        }
+        return filtradas;
+    }
+
+    async findByCampeonato(
+        campeonatoId: string,
+        filtros?: FiltrosInscricao & { page?: number; limit?: number },
+    ): Promise<{ data: Inscricao[]; total: number; page: number; limit: number; totalPages: number }> {
+        const where = this.montarWhereCampeonato(campeonatoId, filtros);
         const page = filtros?.page || 1;
         const limit = filtros?.limit || 10;
+        const offset = (page - 1) * limit;
 
-        // Cidade/box vivem dentro do `dadosFormulario` (JSON livre) e são digitados de
-        // formas diferentes por cada atleta — não dá pra filtrar isso direto no SQL.
-        // Busca tudo que bate com os outros filtros e filtra/pagina em memória.
-        if (filtros?.cidade || filtros?.box) {
+        // Com filtro em memória: busca tudo que bate com o SQL, filtra e pagina aqui.
+        if (filtros?.cidade || filtros?.box || filtros?.docs) {
             const todas = await this.inscricaoRepo.find(where, {
                 populate: ['usuario', 'campeonato'],
                 orderBy: { createdAt: 'DESC' },
             });
 
-            let filtradas = todas;
-            if (filtros.cidade) {
-                filtradas = filtradas.filter((i) => isSimilar(resolveCidade(i.dadosFormulario) ?? '', filtros.cidade!));
-            }
-            if (filtros.box) {
-                filtradas = filtradas.filter((i) => isSimilar(resolveBox(i.dadosFormulario) ?? '', filtros.box!));
-            }
-
+            const filtradas = this.filtrarEmMemoria(todas, filtros);
             const total = filtradas.length;
-            const offset = (page - 1) * limit;
             const data = filtradas.slice(offset, offset + limit);
             await this.mapSignedUrls(data);
 
             return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
         }
-
-        const offset = (page - 1) * limit;
 
         const [inscricoes, total] = await this.inscricaoRepo.findAndCount(
             where,
@@ -601,78 +665,18 @@ export class InscricaoService {
         };
     }
 
-    async findAllByCampeonato(
-        campeonatoId: string,
-        filtros?: {
-            status?: string;
-            categoria?: string;
-            modalidade?: string;
-            sexo?: string;
-            docs?: string;
-            search?: string;
-            cidade?: string;
-            box?: string;
-        },
-    ): Promise<Inscricao[]> {
-        const where: any = { campeonato: { id: campeonatoId }, isDeleted: false };
-
-        if (filtros?.status) where.status = filtros.status;
-        if (filtros?.categoria) where.categoria = filtros.categoria;
-        if (filtros?.modalidade) where.modalidade = filtros.modalidade;
-
-        if (filtros?.sexo) {
-            where.categoria = { $ilike: `%${filtros.sexo}%` };
-        }
-
-        if (filtros?.search) {
-            where.$or = [
-                { nomeAtleta: { $ilike: `%${filtros.search}%` } },
-                { email: { $ilike: `%${filtros.search}%` } },
-                { cpf: { $ilike: `%${filtros.search}%` } },
-            ];
-        }
-
-        if (filtros?.docs) {
-            if (filtros.docs === 'ok') {
-                where.laudoMedicoUrl = { $ne: null };
-                where.documentoIdentidadeUrl = { $ne: null };
-                where.termoUrl = { $ne: null };
-            } else if (filtros.docs === 'pendente') {
-                where.$or = [
-                    { laudoMedicoUrl: null },
-                    { documentoIdentidadeUrl: null },
-                    { termoUrl: null },
-                ];
-            }
-        }
-
-        let inscricoes = await this.inscricaoRepo.find(where, {
+    async findAllByCampeonato(campeonatoId: string, filtros?: FiltrosInscricao): Promise<Inscricao[]> {
+        const inscricoes = await this.inscricaoRepo.find(this.montarWhereCampeonato(campeonatoId, filtros), {
             populate: ['usuario', 'campeonato'],
             orderBy: { createdAt: 'DESC' },
         });
 
-        if (filtros?.cidade) {
-            inscricoes = inscricoes.filter((i) => isSimilar(resolveCidade(i.dadosFormulario) ?? '', filtros.cidade!));
-        }
-        if (filtros?.box) {
-            inscricoes = inscricoes.filter((i) => isSimilar(resolveBox(i.dadosFormulario) ?? '', filtros.box!));
-        }
-
-        return inscricoes;
+        return this.filtrarEmMemoria(inscricoes, filtros);
     }
 
     async exportarCampeonatoXlsx(
         campeonatoId: string,
-        filtros?: {
-            status?: string;
-            categoria?: string;
-            modalidade?: string;
-            sexo?: string;
-            docs?: string;
-            search?: string;
-            cidade?: string;
-            box?: string;
-        },
+        filtros?: FiltrosInscricao,
     ): Promise<{ buffer: Buffer; nomeArquivo: string }> {
         const campeonato = await this.campeonatoRepo.findOne({ id: campeonatoId });
         if (!campeonato) throw new NotFoundException('Campeonato não encontrado');
@@ -807,30 +811,30 @@ export class InscricaoService {
     // ── Upload de documentos obrigatórios ──
 
     async enviarLaudoMedico(id: string, usuarioId: string, laudoMedicoUrl: string): Promise<Inscricao> {
-        const inscricao = await this.inscricaoRepo.findOne({
-            id,
-            usuario: { id: usuarioId },
-            isDeleted: false,
-        });
+        const inscricao = await this.inscricaoRepo.findOne(
+            { id, usuario: { id: usuarioId }, isDeleted: false },
+            { populate: ['campeonato'] },
+        );
         if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
 
         inscricao.laudoMedicoUrl = laudoMedicoUrl;
         inscricao.laudoMedicoUpdatedAt = new Date();
         await this.em.flush();
+        await this.mapSignedUrls(inscricao);
         return inscricao;
     }
 
     async enviarDocumentoIdentidade(id: string, usuarioId: string, documentoIdentidadeUrl: string): Promise<Inscricao> {
-        const inscricao = await this.inscricaoRepo.findOne({
-            id,
-            usuario: { id: usuarioId },
-            isDeleted: false,
-        });
+        const inscricao = await this.inscricaoRepo.findOne(
+            { id, usuario: { id: usuarioId }, isDeleted: false },
+            { populate: ['campeonato'] },
+        );
         if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
 
         inscricao.documentoIdentidadeUrl = documentoIdentidadeUrl;
         inscricao.documentoIdentidadeUpdatedAt = new Date();
         await this.em.flush();
+        await this.mapSignedUrls(inscricao);
         return inscricao;
     }
 
@@ -841,7 +845,7 @@ export class InscricaoService {
         tipo: 'laudoMedico' | 'documentoIdentidade' | 'termo',
         url: string,
     ): Promise<Inscricao> {
-        const inscricao = await this.inscricaoRepo.findOne({ id, isDeleted: false });
+        const inscricao = await this.inscricaoRepo.findOne({ id, isDeleted: false }, { populate: ['campeonato'] });
         if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
         if (!inscricao.parceiros?.[index]) throw new BadRequestException('Parceiro não encontrado');
 
@@ -860,6 +864,7 @@ export class InscricaoService {
         };
         inscricao.parceiros = parceiros;
         await this.em.flush();
+        await this.mapSignedUrls(inscricao);
         return inscricao;
     }
 
@@ -884,16 +889,16 @@ export class InscricaoService {
     }
 
     async enviarTermo(id: string, usuarioId: string, termoUrl: string): Promise<Inscricao> {
-        const inscricao = await this.inscricaoRepo.findOne({
-            id,
-            usuario: { id: usuarioId },
-            isDeleted: false,
-        });
+        const inscricao = await this.inscricaoRepo.findOne(
+            { id, usuario: { id: usuarioId }, isDeleted: false },
+            { populate: ['campeonato'] },
+        );
         if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
 
         inscricao.termoUrl = termoUrl;
         inscricao.termoUpdatedAt = new Date();
         await this.em.flush();
+        await this.mapSignedUrls(inscricao);
         return inscricao;
     }
 
@@ -912,6 +917,7 @@ export class InscricaoService {
     async statsByCampeonato(campeonatoId: string) {
         const inscricoes = await this.inscricaoRepo.findAll({
             where: { campeonato: { id: campeonatoId }, isDeleted: false },
+            populate: ['campeonato'],
         });
 
         const counters: Record<string, number> = {
@@ -930,9 +936,9 @@ export class InscricaoService {
             if (i.categoria) {
                 porCategoria[i.categoria] = (porCategoria[i.categoria] || 0) + 1;
             }
-            // Contagem de documentos
-            const todosDocsSent = !!(i.laudoMedicoUrl && i.documentoIdentidadeUrl && i.termoUrl);
-            if (todosDocsSent) {
+            // Contagem de documentos (titular + parceiros)
+            const { enviados, total } = resumoDocumentos(i);
+            if (enviados === total) {
                 docsCompletos++;
             } else {
                 docsPendentes++;
@@ -957,10 +963,7 @@ export class InscricaoService {
         const semTelefone = !phone;
 
         if (tipo === 'docs_pendentes') {
-            const docs: string[] = [];
-            if (!inscricao.laudoMedicoUrl)         docs.push('Laudo médico');
-            if (!inscricao.documentoIdentidadeUrl) docs.push('Documento de identidade');
-            if (!inscricao.termoUrl)               docs.push('Termo de uso de imagem');
+            const docs = resumoDocumentos(inscricao).pendentes;
 
             this.notificarAsync(() =>
                 this.notificacoes.notificarDocumentosPendentes({

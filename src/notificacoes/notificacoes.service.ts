@@ -63,7 +63,11 @@ export class NotificacoesService {
         }
 
         try {
-            const notif = this.repo.create({
+            // Fork próprio: as notificações rodam em background (fire-and-forget) dentro do contexto
+            // da requisição, e um flush ali gravaria junto qualquer mudança pendente dela — ex.: as
+            // Signed URLs temporárias que o InscricaoService coloca na entidade só pra resposta.
+            const em = this.em.fork();
+            const notif = em.create(Notificacao, {
                 tipo,
                 usuarioId,
                 campeonatoId,
@@ -77,8 +81,8 @@ export class NotificacoesService {
                 enviadoEm,
                 erroMsg,
             } as any);
-            this.em.persist(notif);
-            await this.em.flush();
+            em.persist(notif);
+            await em.flush();
         } catch (dbErr: any) {
             this.logger.warn(`Falha ao salvar notificação: ${dbErr?.message}`);
         }
