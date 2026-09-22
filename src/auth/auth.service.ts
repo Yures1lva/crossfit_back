@@ -137,6 +137,16 @@ export class AuthService {
             const payload = await this.jwtService.verifyAsync(refreshToken, {
                 secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
             });
+
+            // Só revoga se este token for mesmo o da sessão guardada. Como o banco tem um
+            // hash por usuário, um login novo substitui o do anterior; sem esta conferência
+            // o logout de uma aba antiga derrubaria a sessão que está valendo agora — o que
+            // acontece toda hora quando a mesma conta é usada em dois lugares.
+            const usuario = await this.usuarioService.findOne(payload.sub);
+            if (!usuario?.refreshToken) return;
+            const isSessaoAtual = await bcrypt.compare(refreshToken, usuario.refreshToken);
+            if (!isSessaoAtual) return;
+
             await this.usuarioService.updateRefreshToken(payload.sub, null);
         } catch {
             // Token inválido/expirado: não há sessão a revogar.
