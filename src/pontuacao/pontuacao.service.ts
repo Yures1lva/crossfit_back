@@ -28,6 +28,14 @@ export class PontuacaoService {
         return Math.max(0, 94 - (posicao - 2) * 4);
     }
 
+    /**
+     * Dois valores contam como empate. Tempo é guardado em segundos com fração, então a
+     * comparação é feita em milissegundos — o mesmo grão que o organizador digita.
+     */
+    private mesmoValor(a: number, b: number): boolean {
+        return Math.round(a * 1000) === Math.round(b * 1000);
+    }
+
     /** Recalcula posições e pontos de todas as pontuações de uma prova para uma categoria */
     private async recalcularPosicoes(provaId: string, categoria: string, menorVence: boolean): Promise<void> {
         const pontuacoes = await this.pontuacaoRepo.findAll({
@@ -44,13 +52,25 @@ export class PontuacaoService {
         const comValor = daCategoria.filter((p) => p.valor !== null && p.valor !== undefined);
         const semValor = daCategoria.filter((p) => p.valor === null || p.valor === undefined);
 
-        comValor.sort((a, b) =>
-            menorVence ? (a.valor! - b.valor!) : (b.valor! - a.valor!),
-        );
+        comValor.sort((a, b) => {
+            const porValor = menorVence ? a.valor! - b.valor! : b.valor! - a.valor!;
+            if (porValor !== 0) return porValor;
+            // Mesmo valor: quem o organizador desempatou vem primeiro, na ordem que ele deu.
+            return (a.desempate ?? Number.MAX_SAFE_INTEGER) - (b.desempate ?? Number.MAX_SAFE_INTEGER);
+        });
 
+        // Empate ocupa a mesma colocação: dois atletas com o mesmo valor ficam ambos em 2º
+        // e o seguinte cai pro 4º. Vale pra qualquer quantidade de empatados. Quem recebeu
+        // desempate manual sai do bolo e ocupa colocação própria.
+        let posicao = 0;
         comValor.forEach((p, i) => {
-            p.posicao = i + 1;
-            p.pontos = this.calcularPontos(i + 1);
+            const anterior = comValor[i - 1];
+            const empatado = i > 0
+                && this.mesmoValor(p.valor!, anterior.valor!)
+                && (p.desempate ?? null) === (anterior.desempate ?? null);
+            if (!empatado) posicao = i + 1;
+            p.posicao = posicao;
+            p.pontos = this.calcularPontos(posicao);
         });
         semValor.forEach((p) => {
             p.posicao = undefined;
@@ -131,9 +151,14 @@ export class PontuacaoService {
             };
         });
 
-        // Ordena por total (maior primeiro)
+        // Ordena por total (maior primeiro). Mesma regra de empate das provas: quem soma o
+        // mesmo total divide a colocação, e a seguinte pula (dois em 2º → o próximo é 4º).
         rows.sort((a, b) => b.totalPontos - a.totalPontos);
-        rows.forEach((r, i) => { (r as any).posicaoGeral = i + 1; });
+        let posicaoGeral = 0;
+        rows.forEach((r, i) => {
+            if (i === 0 || r.totalPontos !== rows[i - 1].totalPontos) posicaoGeral = i + 1;
+            (r as any).posicaoGeral = posicaoGeral;
+        });
 
         return { provas: provas.map((p) => ({ id: p.id, nome: p.nome, cor: p.cor, categorias: p.categorias, sexo: p.sexo, horaInicio: p.horaInicio })), rows };
     }
@@ -181,6 +206,36 @@ export class PontuacaoService {
         return pont;
     }
 
+    /**
+     * Grava a ordem de desempate escolhida pelo organizador para uma prova/categoria.
+     *
+     * `ordem` são os inscricaoIds na ordem desejada; quem não estiver na lista volta a
+     * empatar. Lista vazia desfaz todos os desempates da prova nessa categoria.
+     */
+    async definirDesempate(provaId: string, categoriaKey: string, ordem: string[]): Promise<void> {
+        const prova = await this.provaRepo.findOne({ id: provaId, isDeleted: false });
+        if (!prova) throw new NotFoundException('Prova não encontrada');
+
+        const pontuacoes = await this.pontuacaoRepo.findAll({
+            where: { prova: { id: provaId } },
+            populate: ['inscricao'],
+        });
+
+        const daCategoria = pontuacoes.filter((p) => {
+            const insc = p.inscricao as Inscricao;
+            const cat = [insc.modalidade, insc.categoria].filter(Boolean).join('|');
+            return cat === categoriaKey;
+        });
+
+        daCategoria.forEach((p) => {
+            const posicaoNaOrdem = ordem.indexOf((p.inscricao as Inscricao).id);
+            p.desempate = posicaoNaOrdem >= 0 ? posicaoNaOrdem + 1 : undefined;
+        });
+
+        await this.em.flush();
+        await this.recalcularPosicoes(provaId, categoriaKey, prova.menorVence);
+    }
+
     /** Limpa todas as pontuações de uma prova em uma categoria */
     async limparProva(provaId: string, categoriaKey: string): Promise<void> {
         const pontuacoes = await this.pontuacaoRepo.findAll({
@@ -199,9 +254,49 @@ export class PontuacaoService {
             p.valorDisplay = undefined;
             p.posicao = undefined;
             p.pontos = undefined;
+            p.desempate = undefined;
         });
 
         await this.em.flush();
+    }
+
+    /**
+     * Recalcula colocações e pontos de todas as provas do campeonato.
+     *
+     * O recálculo normal acontece a cada pontuação salva, então isto só é necessário quando
+     * a regra muda por fora — como na adoção do empate dividindo a colocação, que não
+     * reescreve sozinha as provas que já estavam fechadas.
+     */
+    async recalcularCampeonato(campeonatoId: string): Promise<{ provas: number; categorias: number }> {
+        const provas = await this.provaRepo.findAll({
+            where: { campeonato: { id: campeonatoId }, isDeleted: false },
+        });
+
+        const pontuacoes = await this.pontuacaoRepo.findAll({
+            where: { campeonato: { id: campeonatoId } },
+            populate: ['inscricao', 'prova'],
+        });
+
+        let categorias = 0;
+        for (const prova of provas) {
+            if (prova.tipoValor === TipoValorProva.POSICAO_MANUAL) continue;
+
+            const categoriasDaProva = new Set(
+                pontuacoes
+                    .filter((p) => (p.prova as Prova).id === prova.id)
+                    .map((p) => {
+                        const insc = p.inscricao as Inscricao;
+                        return [insc.modalidade, insc.categoria].filter(Boolean).join('|');
+                    }),
+            );
+
+            for (const categoria of categoriasDaProva) {
+                await this.recalcularPosicoes(prova.id, categoria, prova.menorVence);
+                categorias++;
+            }
+        }
+
+        return { provas: provas.length, categorias };
     }
 
     /** Lista todas as pontuações de um atleta (por inscricao) */

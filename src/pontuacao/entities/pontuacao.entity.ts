@@ -27,6 +27,13 @@ export class Pontuacao {
     @Property({ nullable: true })
     valorDisplay?: string;
 
+    /**
+     * Ordem escolhida pelo organizador para desempatar quem tem o mesmo valor.
+     * Vazio = empate mantido (os empatados dividem a colocação).
+     */
+    @Property({ nullable: true })
+    desempate?: number;
+
     /** Posição nesta prova (1º, 2º, ...) */
     @Property({ nullable: true })
     posicao?: number;

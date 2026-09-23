@@ -2,6 +2,7 @@ import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards } from '@n
 import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { PontuacaoService } from './pontuacao.service';
 import { UpsertPontuacaoDto } from './dto/upsert-pontuacao.dto';
+import { DefinirDesempateDto } from './dto/definir-desempate.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -44,6 +45,28 @@ export class PontuacaoController {
     @Post()
     async upsert(@Param('campeonatoId') campeonatoId: string, @Body() dto: UpsertPontuacaoDto) {
         return this.pontuacaoService.upsert(campeonatoId, dto);
+    }
+
+    /** Define a ordem de desempate de uma prova/categoria (admin) */
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard, RolesGuard)
+    @Roles('admin', 'organizer')
+    @Post('prova/:provaId/desempate')
+    async desempatar(
+        @Param('provaId') provaId: string,
+        @Body() dto: DefinirDesempateDto,
+    ) {
+        await this.pontuacaoService.definirDesempate(provaId, dto.categoria, dto.ordem);
+        return { success: true };
+    }
+
+    /** Recalcula colocações e pontos de todas as provas do campeonato (admin) */
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard, RolesGuard)
+    @Roles('admin', 'organizer')
+    @Post('recalcular')
+    async recalcular(@Param('campeonatoId') campeonatoId: string) {
+        return this.pontuacaoService.recalcularCampeonato(campeonatoId);
     }
 
     /** Limpar prova de uma categoria (admin) */
