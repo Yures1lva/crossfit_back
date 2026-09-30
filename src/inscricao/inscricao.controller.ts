@@ -15,6 +15,8 @@ import type { Response } from 'express';
 import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { InscricaoService } from './inscricao.service';
 import { CreateInscricaoDto } from './dto/create-inscricao.dto';
+import { AtualizarDadosAdminDto } from './dto/atualizar-dados-admin.dto';
+import { EnviarDocumentoAdminDto } from './dto/enviar-documento-admin.dto';
 import { ResponseInscricaoDto } from './dto/response-inscricao.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -316,13 +318,23 @@ export class InscricaoController {
     @ApiBearerAuth('JWT-auth')
     @UseGuards(AuthGuard, RolesGuard)
     @Roles('admin', 'organizer')
+    @Patch(':id/documento-admin')
+    async enviarDocumentoAdmin(@Param('id') id: string, @Body() dto: EnviarDocumentoAdminDto) {
+        const inscricao = await this.inscricaoService.enviarDocumentoAdmin(
+            id,
+            dto.tipo,
+            dto.url,
+            dto.parceiroIndex,
+        );
+        return new ResponseInscricaoDto(inscricao);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard, RolesGuard)
+    @Roles('admin', 'organizer')
     @Patch(':id/dados-admin')
-    async atualizarDadosAdmin(
-        @Param('id') id: string,
-        @Body('categoria') categoria?: string,
-        @Body('tamanhoCamisa') tamanhoCamisa?: string,
-    ) {
-        const inscricao = await this.inscricaoService.atualizarDadosAdmin(id, { categoria, tamanhoCamisa });
+    async atualizarDadosAdmin(@Param('id') id: string, @Body() dto: AtualizarDadosAdminDto) {
+        const inscricao = await this.inscricaoService.atualizarDadosAdmin(id, dto);
         return new ResponseInscricaoDto(inscricao);
     }
 

@@ -3,6 +3,8 @@ import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository, EntityManager } from '@mikro-orm/postgresql';
 import { Inscricao, StatusInscricao, StatusPagamento } from './entities/inscricao.entity';
 import { CreateInscricaoDto } from './dto/create-inscricao.dto';
+import { AtualizarDadosAdminDto } from './dto/atualizar-dados-admin.dto';
+import { TipoDocumentoInscricao } from './dto/enviar-documento-admin.dto';
 import { Usuario } from '../usuario/entities/usuario.entity';
 import { Campeonato } from '../campeonato/entities/campeonato.entity';
 import { UploadService } from '../upload/upload.service';
@@ -10,7 +12,7 @@ import { NotificacoesService } from '../notificacoes/notificacoes.service';
 import { buildInscricoesWorkbook } from './inscricao-export.util';
 import { resolveCidade, resolveBox } from '../common/utils/dados-formulario.util';
 import { isSimilar, dedupeSimilarStrings } from '../common/utils/string-similarity.util';
-import { CAMPOS_DOCUMENTO, resumoDocumentos } from './inscricao-docs.util';
+import { CAMPOS_DOCUMENTO, CampoDocumento, resumoDocumentos } from './inscricao-docs.util';
 
 interface FiltrosInscricao {
     status?: string;
@@ -517,14 +519,63 @@ export class InscricaoService {
         });
     }
 
-    async atualizarDadosAdmin(
-        id: string,
-        dados: { categoria?: string; tamanhoCamisa?: string },
-    ): Promise<Inscricao> {
-        const inscricao = await this.inscricaoRepo.findOne({ id, isDeleted: false });
+    /**
+     * Correções feitas pelo admin numa inscrição já enviada. Só os campos presentes no DTO
+     * são tocados, então a mesma rota atende desde "trocar a categoria" até "salvar só a
+     * observação interna" — esta última sem aprovar nem rejeitar.
+     */
+    async atualizarDadosAdmin(id: string, dados: AtualizarDadosAdminDto): Promise<Inscricao> {
+        const inscricao = await this.inscricaoRepo.findOne(
+            { id, isDeleted: false },
+            { populate: ['usuario', 'campeonato'] },
+        );
         if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+
+        // CPF e e-mail identificam o atleta: são eles que ligam a inscrição à conta dele e
+        // o encontram como parceiro de equipe. Duplicar um dos dois no mesmo campeonato
+        // quebraria essa ligação, então a checagem é a mesma da criação.
+        for (const campo of ['cpf', 'email'] as const) {
+            const novo = dados[campo];
+            if (novo === undefined || novo === inscricao[campo]) continue;
+
+            const jaUsado = await this.inscricaoRepo.findOne({
+                [campo]: novo,
+                campeonato: { id: (inscricao.campeonato as Campeonato).id },
+                id: { $ne: id },
+                isDeleted: false,
+                status: { $nin: [StatusInscricao.REJECTED, StatusInscricao.CANCELLED] },
+            } as any);
+            if (jaUsado) {
+                throw new BadRequestException(
+                    `Já existe outra inscrição neste campeonato com este ${campo === 'cpf' ? 'CPF' : 'e-mail'}`,
+                );
+            }
+            inscricao[campo] = novo;
+        }
+
+        if (dados.nomeAtleta !== undefined) inscricao.nomeAtleta = dados.nomeAtleta;
+        if (dados.telefone !== undefined) inscricao.telefone = dados.telefone;
         if (dados.categoria !== undefined) inscricao.categoria = dados.categoria;
         if (dados.tamanhoCamisa !== undefined) inscricao.tamanhoCamisa = dados.tamanhoCamisa;
+        if (dados.valorPago !== undefined) inscricao.valorPago = dados.valorPago ?? undefined;
+        if (dados.loteNome !== undefined) inscricao.loteNome = dados.loteNome;
+        if (dados.dadosFormulario !== undefined) inscricao.dadosFormulario = dados.dadosFormulario;
+
+        if (dados.comprovanteUrl !== undefined) {
+            inscricao.comprovanteUrl = dados.comprovanteUrl;
+            inscricao.comprovanteUpdatedAt = new Date();
+            // Inscrição ainda em análise passa a contar como "comprovante enviado". Uma já
+            // decidida não volta atrás só porque o admin anexou o arquivo por fora.
+            if (
+                inscricao.status === StatusInscricao.PENDING ||
+                inscricao.status === StatusInscricao.AWAITING_PAYMENT
+            ) {
+                inscricao.status = StatusInscricao.PAYMENT_UPLOADED;
+                inscricao.paymentStatus = StatusPagamento.PROOF_SENT;
+            }
+        }
+        if (dados.observacoesAdmin !== undefined) inscricao.observacoesAdmin = dados.observacoesAdmin;
+
         await this.em.flush();
         await this.mapSignedUrls(inscricao);
         return inscricao;
@@ -863,6 +914,50 @@ export class InscricaoService {
             [`${tipo}UpdatedAt`]: new Date(),
         };
         inscricao.parceiros = parceiros;
+        await this.em.flush();
+        await this.mapSignedUrls(inscricao);
+        return inscricao;
+    }
+
+    /**
+     * Documento anexado pelo admin, do titular ou de um parceiro.
+     *
+     * Existe porque é comum o atleta mandar o arquivo por fora (WhatsApp, e-mail) e a
+     * organização precisar registrar na inscrição. Diferente das rotas do atleta, aqui não
+     * há checagem de dono — quem chega já passou pelo guard de admin/organizador.
+     */
+    async enviarDocumentoAdmin(
+        id: string,
+        tipo: TipoDocumentoInscricao,
+        url: string,
+        parceiroIndex?: number,
+    ): Promise<Inscricao> {
+        const inscricao = await this.inscricaoRepo.findOne(
+            { id, isDeleted: false },
+            { populate: ['campeonato'] },
+        );
+        if (!inscricao) throw new NotFoundException('Inscrição não encontrada');
+
+        const campoUrl = `${tipo}Url` as CampoDocumento;
+        const campoData = `${tipo}UpdatedAt` as
+            'laudoMedicoUpdatedAt' | 'documentoIdentidadeUpdatedAt' | 'termoUpdatedAt';
+
+        if (parceiroIndex === undefined) {
+            inscricao[campoUrl] = url;
+            inscricao[campoData] = new Date();
+        } else {
+            if (!inscricao.parceiros?.[parceiroIndex]) {
+                throw new BadRequestException('Parceiro não encontrado');
+            }
+            const parceiros = [...inscricao.parceiros];
+            parceiros[parceiroIndex] = {
+                ...parceiros[parceiroIndex],
+                [campoUrl]: url,
+                [campoData]: new Date(),
+            };
+            inscricao.parceiros = parceiros;
+        }
+
         await this.em.flush();
         await this.mapSignedUrls(inscricao);
         return inscricao;
