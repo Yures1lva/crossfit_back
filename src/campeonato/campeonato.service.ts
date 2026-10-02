@@ -3,7 +3,11 @@ import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository, EntityManager } from '@mikro-orm/postgresql';
 import { Campeonato, CampoFormulario, ModalidadeConfig } from './entities/campeonato.entity';
 import { CreateCampeonatoDto } from './dto/create-campeonato.dto';
-import { UpdateCampeonatoDto } from './dto/update-campeonato.dto';
+import { UpdateCampeonatoDto, RenomearCategoriaDto } from './dto/update-campeonato.dto';
+import { Inscricao } from '../inscricao/entities/inscricao.entity';
+import { Prova } from '../prova/entities/prova.entity';
+import { Bateria } from '../bateria/entities/bateria.entity';
+import { baseCategoria } from '../common/utils/categoria.util';
 
 /** Modalidades padrão pré-configuradas */
 const DEFAULT_MODALIDADES: ModalidadeConfig[] = [
@@ -98,10 +102,81 @@ export class CampeonatoService {
     }
 
     async update(id: string, dto: UpdateCampeonatoDto): Promise<Campeonato> {
+        // `renomearCategorias` é instrução, não campo do campeonato — fica fora do assign.
+        const { renomearCategorias, ...dadosDoCampeonato } = dto;
+
         const campeonato = await this.findOne(id);
-        this.campeonatoRepo.assign(campeonato, dto);
+        this.campeonatoRepo.assign(campeonato, dadosDoCampeonato);
         await this.em.flush();
+
+        if (renomearCategorias?.length) {
+            await this.propagarRenomeioDeCategorias(campeonato, renomearCategorias);
+        }
+
         return campeonato;
+    }
+
+    /**
+     * Categoria é texto livre, copiado para quem se inscreveu, para as provas e para as
+     * baterias. Renomear só na configuração do campeonato deixaria tudo isso apontando para
+     * um nome que não existe mais — as inscrições sumiriam dos filtros, da tabela geral e do
+     * cronograma. Por isso o nome novo é propagado nos três lugares.
+     */
+    private async propagarRenomeioDeCategorias(
+        campeonato: Campeonato,
+        renomeios: RenomearCategoriaDto[],
+    ): Promise<void> {
+        const campeonatoId = campeonato.id;
+        const paraCategoria = (categoria?: string, modalidade?: string) =>
+            renomeios.find(
+                (r) => r.de === categoria && (!r.modalidade || r.modalidade === modalidade),
+            )?.para;
+
+        const inscricoes = await this.em.find(Inscricao, {
+            campeonato: { id: campeonatoId },
+            isDeleted: false,
+        });
+        for (const inscricao of inscricoes) {
+            const nova = paraCategoria(inscricao.categoria, inscricao.modalidade);
+            if (nova) inscricao.categoria = nova;
+        }
+
+        // Provas guardam a categoria base, sem o sufixo de sexo ("Iniciante Masculino" →
+        // "Iniciante"), e essa base é compartilhada entre modalidades. Se alguma categoria que
+        // sobrou ainda usa a base antiga — o Trio continua com "Iniciante Masculino" enquanto
+        // a Individual virou "Novato Masculino" —, mexer na prova quebraria a outra. Nesse
+        // caso a prova fica como está e o organizador ajusta na tela de Provas.
+        const basesEmUso = new Set(
+            (campeonato.modalidades ?? []).flatMap((m) => (m.categorias ?? []).map(baseCategoria)),
+        );
+        const basesRenomeadas = renomeios
+            .map((r) => ({ de: baseCategoria(r.de), para: baseCategoria(r.para) }))
+            .filter((r) => r.de !== r.para && !basesEmUso.has(r.de));
+
+        if (basesRenomeadas.length > 0) {
+            const provas = await this.em.find(Prova, {
+                campeonato: { id: campeonatoId },
+                isDeleted: false,
+            });
+            for (const prova of provas) {
+                if (!prova.categorias?.length) continue;
+                prova.categorias = prova.categorias.map(
+                    (base) => basesRenomeadas.find((r) => r.de === base)?.para ?? base,
+                );
+            }
+        }
+
+        const baterias = await this.em.find(Bateria, {
+            campeonato: { id: campeonatoId },
+            isDeleted: false,
+        });
+        for (const bateria of baterias) {
+            const [modalidade, ...resto] = bateria.categoriaKey.split('|');
+            const nova = paraCategoria(resto.join('|'), modalidade);
+            if (nova) bateria.categoriaKey = [modalidade, nova].join('|');
+        }
+
+        await this.em.flush();
     }
 
     async remove(id: string): Promise<void> {
