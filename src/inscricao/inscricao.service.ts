@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityRepository, EntityManager } from '@mikro-orm/postgresql';
+import { EntityRepository, EntityManager, LockMode } from '@mikro-orm/postgresql';
 import { Inscricao, StatusInscricao, StatusPagamento } from './entities/inscricao.entity';
 import { CreateInscricaoDto } from './dto/create-inscricao.dto';
 import { AtualizarDadosAdminDto } from './dto/atualizar-dados-admin.dto';
@@ -146,6 +146,62 @@ export class InscricaoService {
         await Promise.all(items.map(signOne));
     }
 
+    /**
+     * Barra a inscrição se o campeonato ou a categoria já atingiu o limite de vagas.
+     * Ocupam vaga todas as inscrições ativas (tudo menos rejeitada/cancelada).
+     * Precisa rodar dentro de uma transação: trava a linha do campeonato para que
+     * inscrições simultâneas não passem juntas do limite.
+     */
+    private async garantirVaga(dto: CreateInscricaoDto): Promise<void> {
+        const camp = await this.em.findOne(
+            Campeonato,
+            { id: dto.campeonatoId, isDeleted: false },
+            { lockMode: LockMode.PESSIMISTIC_WRITE },
+        );
+        if (!camp) throw new NotFoundException('Campeonato não encontrado');
+
+        const ativas = {
+            campeonato: { id: camp.id },
+            isDeleted: false,
+            status: { $nin: [StatusInscricao.REJECTED, StatusInscricao.CANCELLED] },
+        };
+
+        if (camp.maxInscritos) {
+            const total = await this.em.count(Inscricao, ativas);
+            if (total >= camp.maxInscritos) {
+                throw new BadRequestException('As vagas deste campeonato estão esgotadas');
+            }
+        }
+
+        const limiteCategoria = dto.categoria
+            ? camp.modalidades?.find(m => m.nome === dto.modalidade)?.maxInscritosPorCategoria?.[dto.categoria]
+            : undefined;
+        if (limiteCategoria) {
+            const total = await this.em.count(Inscricao, {
+                ...ativas,
+                modalidade: dto.modalidade,
+                categoria: dto.categoria,
+            });
+            if (total >= limiteCategoria) {
+                throw new BadRequestException(`As vagas da categoria "${dto.categoria}" estão esgotadas`);
+            }
+        }
+    }
+
+    /** Confere as vagas e grava a inscrição na mesma transação */
+    private async salvarComVaga(dto: CreateInscricaoDto, inscricao: Inscricao, usuarioId?: string): Promise<void> {
+        await this.em.begin();
+        try {
+            await this.garantirVaga(dto);
+            this.em.persist(inscricao);
+            if (usuarioId) await this.syncPhoneToUser(usuarioId, inscricao);
+            await this.em.commit();
+        } catch (err) {
+            await this.em.rollback();
+            throw err;
+        }
+    }
+
     // ── Atleta autenticado ─────────────────────
 
     async create(dto: CreateInscricaoDto, usuarioId: string): Promise<Inscricao> {
@@ -202,9 +258,7 @@ export class InscricaoService {
             inscricao.status = StatusInscricao.PAYMENT_UPLOADED;
         }
 
-        this.em.persist(inscricao);
-        await this.syncPhoneToUser(usuarioId, inscricao);
-        await this.em.flush();
+        await this.salvarComVaga(dto, inscricao, usuarioId);
 
         const campCriado = inscricao.campeonato as Campeonato;
         this.notificarAsync(() =>
@@ -274,8 +328,7 @@ export class InscricaoService {
             inscricao.status = StatusInscricao.PAYMENT_UPLOADED;
         }
 
-        this.em.persist(inscricao);
-        await this.em.flush();
+        await this.salvarComVaga(dto, inscricao);
 
         const campPublic = inscricao.campeonato as Campeonato;
         this.notificarAsync(() =>
