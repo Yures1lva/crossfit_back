@@ -4,7 +4,7 @@ import { EntityRepository, EntityManager } from '@mikro-orm/postgresql';
 import { Campeonato, CampoFormulario, ModalidadeConfig } from './entities/campeonato.entity';
 import { CreateCampeonatoDto } from './dto/create-campeonato.dto';
 import { UpdateCampeonatoDto, RenomearCategoriaDto } from './dto/update-campeonato.dto';
-import { Inscricao } from '../inscricao/entities/inscricao.entity';
+import { Inscricao, StatusInscricao } from '../inscricao/entities/inscricao.entity';
 import { Prova } from '../prova/entities/prova.entity';
 import { Bateria } from '../bateria/entities/bateria.entity';
 import { baseCategoria } from '../common/utils/categoria.util';
@@ -185,10 +185,36 @@ export class CampeonatoService {
         await this.em.flush();
     }
 
+    /**
+     * Quantas inscrições ocupam vaga hoje, no total e por modalidade/categoria. Usa o mesmo
+     * critério que barra a inscrição: tudo menos rejeitada/cancelada.
+     */
+    private async contarInscritos(campeonatoId: string) {
+        const inscricoes = await this.em.find(
+            Inscricao,
+            {
+                campeonato: { id: campeonatoId },
+                isDeleted: false,
+                status: { $nin: [StatusInscricao.REJECTED, StatusInscricao.CANCELLED] },
+            },
+            { fields: ['modalidade', 'categoria'] },
+        );
+
+        const inscritosPorCategoria: Record<string, Record<string, number>> = {};
+        for (const { modalidade, categoria } of inscricoes) {
+            if (!modalidade || !categoria) continue;
+            const porCategoria = (inscritosPorCategoria[modalidade] ??= {});
+            porCategoria[categoria] = (porCategoria[categoria] ?? 0) + 1;
+        }
+        return { totalInscritos: inscricoes.length, inscritosPorCategoria };
+    }
+
     /** Retorna a configuração do formulário */
     async getConfiguracao(id: string) {
         const camp = await this.findOne(id);
         return {
+            maxInscritos: camp.maxInscritos,
+            ...(await this.contarInscritos(camp.id)),
             modalidades: camp.modalidades || DEFAULT_MODALIDADES,
             tamanhosCamisa: camp.tamanhosCamisa || DEFAULT_CAMISAS,
             camposFormulario: camp.camposFormulario || DEFAULT_CAMPOS,
