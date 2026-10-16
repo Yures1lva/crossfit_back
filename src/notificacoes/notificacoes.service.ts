@@ -11,6 +11,7 @@ import {
     NotificacaoStatus,
     NotificacaoTipo,
 } from './entities/notificacao.entity';
+import { formatarDia } from '../common/utils/data.util';
 
 interface EnviarParams {
     tipo: NotificacaoTipo | string;
@@ -109,7 +110,7 @@ export class NotificacoesService {
         if (categoria) linhas.push(`📌 Categoria: *${categoria}*`);
         if (modalidade) linhas.push(`🏋️ Modalidade: *${modalidade}*`);
         if (dataInicio) {
-            const data = dataInicio.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+            const data = formatarDia(dataInicio);
             linhas.push(`📅 Data do evento: *${data}*`);
         }
 
@@ -246,7 +247,7 @@ export class NotificacoesService {
         ];
 
         if (dataInicio) {
-            const data = dataInicio.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+            const data = formatarDia(dataInicio);
             linhas.push(``, `📅 Nos vemos em *${data}*!`);
         }
 

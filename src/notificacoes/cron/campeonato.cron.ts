@@ -2,11 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository } from '@mikro-orm/core';
-import { startOfDay, endOfDay, addDays } from 'date-fns';
 
 import { NotificacoesService } from '../notificacoes.service';
 import { Campeonato, StatusCampeonato } from '../../campeonato/entities/campeonato.entity';
 import { Inscricao, StatusInscricao } from '../../inscricao/entities/inscricao.entity';
+import { hojeBrasil } from '../../common/utils/data.util';
 
 @Injectable()
 export class NotificacoesCron {
@@ -33,12 +33,10 @@ export class NotificacoesCron {
     }
 
     private async lembrarCampeonatoAmanha(): Promise<void> {
-        const amanha = addDays(new Date(), 1);
-        const inicio = startOfDay(amanha);
-        const fim    = endOfDay(amanha);
+        const amanha = hojeBrasil(1);
 
         const campeonatos = await this.campeonatoRepo.find({
-            dataInicio: { $gte: inicio, $lte: fim } as any,
+            dataInicio: amanha as any,
             status: { $in: [StatusCampeonato.PUBLISHED, StatusCampeonato.ONGOING] } as any,
             isDeleted: false,
         } as any);

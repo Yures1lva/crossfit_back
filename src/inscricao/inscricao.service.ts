@@ -13,6 +13,7 @@ import { buildInscricoesWorkbook } from './inscricao-export.util';
 import { resolveCidade, resolveBox } from '../common/utils/dados-formulario.util';
 import { isSimilar, dedupeSimilarStrings } from '../common/utils/string-similarity.util';
 import { CAMPOS_DOCUMENTO, CampoDocumento, resumoDocumentos } from './inscricao-docs.util';
+import { diaJaPassou } from '../common/utils/data.util';
 
 interface FiltrosInscricao {
     status?: string;
@@ -819,7 +820,7 @@ export class InscricaoService {
         const camp = inscricao.campeonato;
         
         const now = new Date();
-        const isPastDeadline = camp?.docsDataLimite ? now > camp.docsDataLimite : false;
+        const isPastDeadline = camp?.docsDataLimite ? diaJaPassou(camp.docsDataLimite, now) : false;
 
         if (!inscricao.laudoMedicoUrl) {
             if (isPastDeadline && !camp?.permitirLaudoNoDia) {

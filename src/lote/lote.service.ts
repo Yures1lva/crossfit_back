@@ -5,6 +5,7 @@ import { Lote } from './entities/lote.entity';
 import { CreateLoteDto } from './dto/create-lote.dto';
 import { UpdateLoteDto } from './dto/update-lote.dto';
 import { Campeonato } from '../campeonato/entities/campeonato.entity';
+import { diaJaPassou } from '../common/utils/data.util';
 
 @Injectable()
 export class LoteService {
@@ -63,9 +64,6 @@ export class LoteService {
      * Ordenado por dataFim ASC (pega o mais próximo de expirar)
      */
     async getLoteAtivo(campeonatoId: string): Promise<Lote | null> {
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-
         const lotes = await this.loteRepo.findAll({
             where: {
                 campeonato: { id: campeonatoId },
@@ -78,7 +76,7 @@ export class LoteService {
 
         // Filtra em memória: dataFim >= hoje e vagas disponíveis
         return lotes.find(
-            (l) => new Date(l.dataFim) >= hoje && l.quantidadeUsada < l.quantidadeTotal,
+            (l) => !diaJaPassou(l.dataFim) && l.quantidadeUsada < l.quantidadeTotal,
         ) || null;
     }
 
