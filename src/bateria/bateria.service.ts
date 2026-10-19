@@ -6,7 +6,7 @@ import { CreateBateriaDto } from './dto/create-bateria.dto';
 import { UpdateBateriaDto } from './dto/update-bateria.dto';
 import { Campeonato } from '../campeonato/entities/campeonato.entity';
 import { Prova } from '../prova/entities/prova.entity';
-import { Inscricao } from '../inscricao/entities/inscricao.entity';
+import { Inscricao, StatusInscricao } from '../inscricao/entities/inscricao.entity';
 
 @Injectable()
 export class BateriaService {
@@ -72,7 +72,11 @@ export class BateriaService {
         await this.em.flush();
     }
 
-    /** Gera baterias automaticamente para um campeonato com base nas inscrições aprovadas */
+    /**
+     * Gera baterias automaticamente com todas as inscrições ativas da categoria
+     * (exceto rejeitadas/canceladas) — pendências de aprovação e documentos
+     * aparecem como alerta no cronograma, não impedem a geração.
+     */
     async gerarAutomatico(campeonatoId: string, provaId: string, categoriaKey: string, raiasPorBateriaOverride?: number): Promise<Bateria[]> {
         const inscricaoRepo = this.em.getRepository(Inscricao);
         const provaRepo = this.em.getRepository(Prova);
@@ -87,7 +91,7 @@ export class BateriaService {
         const inscricoes = await inscricaoRepo.find({
             campeonato: { id: campeonatoId },
             isDeleted: false,
-            status: 'approved' as any,
+            status: { $nin: [StatusInscricao.REJECTED, StatusInscricao.CANCELLED] },
             modalidade,
             categoria,
         } as any);
