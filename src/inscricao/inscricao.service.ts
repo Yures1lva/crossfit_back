@@ -160,6 +160,9 @@ export class InscricaoService {
             { lockMode: LockMode.PESSIMISTIC_WRITE },
         );
         if (!camp) throw new NotFoundException('Campeonato não encontrado');
+        if (camp.inscricaoFim && diaJaPassou(camp.inscricaoFim)) {
+            throw new BadRequestException('As inscrições deste campeonato estão encerradas');
+        }
 
         const ativas = {
             campeonato: { id: camp.id },
