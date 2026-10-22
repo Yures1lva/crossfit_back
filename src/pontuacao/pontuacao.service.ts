@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository, EntityManager } from '@mikro-orm/postgresql';
 import { Pontuacao } from './entities/pontuacao.entity';
@@ -7,10 +7,13 @@ import { Campeonato } from '../campeonato/entities/campeonato.entity';
 import { Prova } from '../prova/entities/prova.entity';
 import { Inscricao } from '../inscricao/entities/inscricao.entity';
 import { TipoValorProva } from '../prova/entities/prova.entity';
-import { provaElegivelParaCategoriaKey } from '../common/utils/categoria.util';
+import { provasDaCategoriaOrdenadas } from '../common/utils/categoria.util';
+import { BateriaService } from '../bateria/bateria.service';
 
 @Injectable()
 export class PontuacaoService {
+    private readonly logger = new Logger(PontuacaoService.name);
+
     constructor(
         @InjectRepository(Pontuacao)
         private readonly pontuacaoRepo: EntityRepository<Pontuacao>,
@@ -19,7 +22,21 @@ export class PontuacaoService {
         @InjectRepository(Inscricao)
         private readonly inscricaoRepo: EntityRepository<Inscricao>,
         private readonly em: EntityManager,
+        private readonly bateriaService: BateriaService,
     ) {}
+
+    /**
+     * Com a montagem pela classificação ligada, remonta as baterias das próximas provas da
+     * categoria. Falha aqui não pode derrubar o lançamento da nota — só registra.
+     */
+    private async reorganizarBaterias(campeonatoId: string, categoriaKey?: string): Promise<void> {
+        try {
+            if (categoriaKey) await this.bateriaService.reorganizarPorClassificacao(campeonatoId, categoriaKey);
+            else await this.bateriaService.reorganizarCampeonato(campeonatoId);
+        } catch (err) {
+            this.logger.error(`Falha ao remontar baterias pela classificação (${categoriaKey ?? 'todas'})`, err as Error);
+        }
+    }
 
     /** Pontos por posição: 1°=100, 2°=94, 3°+=94-(pos-2)*4 */
     private calcularPontos(posicao: number): number {
@@ -108,7 +125,8 @@ export class PontuacaoService {
             where: { campeonato: { id: campeonatoId }, isDeleted: false },
             orderBy: { ordem: 'ASC', createdAt: 'ASC' },
         });
-        const provas = todasProvas.filter((p) => provaElegivelParaCategoriaKey(p, categoriaKey));
+        const campeonato = await this.em.findOne(Campeonato, { id: campeonatoId });
+        const provas = provasDaCategoriaOrdenadas(todasProvas, categoriaKey, campeonato?.ordemProvas);
 
         const pontuacoes = await this.pontuacaoRepo.findAll({
             where: { campeonato: { id: campeonatoId } },
@@ -202,6 +220,7 @@ export class PontuacaoService {
         if (prova.tipoValor !== TipoValorProva.POSICAO_MANUAL) {
             await this.recalcularPosicoes(dto.provaId, categoriaKey, prova.menorVence);
         }
+        await this.reorganizarBaterias(campeonatoId, categoriaKey);
 
         return pont;
     }
@@ -234,10 +253,14 @@ export class PontuacaoService {
 
         await this.em.flush();
         await this.recalcularPosicoes(provaId, categoriaKey, prova.menorVence);
+        await this.reorganizarBaterias(prova.campeonato.id, categoriaKey);
     }
 
     /** Limpa todas as pontuações de uma prova em uma categoria */
     async limparProva(provaId: string, categoriaKey: string): Promise<void> {
+        const prova = await this.provaRepo.findOne({ id: provaId, isDeleted: false });
+        if (!prova) throw new NotFoundException('Prova não encontrada');
+
         const pontuacoes = await this.pontuacaoRepo.findAll({
             where: { prova: { id: provaId } },
             populate: ['inscricao'],
@@ -258,6 +281,7 @@ export class PontuacaoService {
         });
 
         await this.em.flush();
+        await this.reorganizarBaterias(prova.campeonato.id, categoriaKey);
     }
 
     /**
@@ -296,6 +320,7 @@ export class PontuacaoService {
             }
         }
 
+        await this.reorganizarBaterias(campeonatoId);
         return { provas: provas.length, categorias };
     }
 

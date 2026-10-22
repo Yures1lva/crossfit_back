@@ -123,6 +123,19 @@ export class Campeonato {
     @Property({ default: false })
     permitirLaudoNoDia: boolean = false;
 
+    // ── Cronograma ───────────────────────────
+    /** Da 2ª prova em diante de cada categoria, baterias são remontadas pela classificação a cada pontuação */
+    @Property({ default: false })
+    bateriasPorClassificacao: boolean = false;
+
+    /** Sentido da montagem pela classificação: true = líder na última bateria; false = líder na primeira */
+    @Property({ default: true })
+    liderNaUltimaBateria: boolean = true;
+
+    /** Ordem das provas no cronograma de cada categoria: { "modalidade|categoria": [provaId, ...] } */
+    @Property({ nullable: true, type: 'json' })
+    ordemProvas?: Record<string, string[]>;
+
     // ── Status ───────────────────────────────
     @Enum(() => StatusCampeonato)
     status: StatusCampeonato = StatusCampeonato.DRAFT;

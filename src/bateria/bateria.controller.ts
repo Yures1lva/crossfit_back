@@ -3,6 +3,7 @@ import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { BateriaService } from './bateria.service';
 import { CreateBateriaDto } from './dto/create-bateria.dto';
 import { UpdateBateriaDto } from './dto/update-bateria.dto';
+import { CronogramaConfigDto, OrdemProvasDto } from './dto/cronograma-config.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -49,6 +50,22 @@ export class BateriaController {
             categoria,
             raias ? parseInt(raias) : undefined,
         );
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard, RolesGuard)
+    @Roles('admin', 'organizer')
+    @Put('config')
+    async salvarConfig(@Param('campeonatoId') campeonatoId: string, @Body() dto: CronogramaConfigDto) {
+        return this.bateriaService.salvarConfig(campeonatoId, dto);
+    }
+
+    @ApiBearerAuth('JWT-auth')
+    @UseGuards(AuthGuard, RolesGuard)
+    @Roles('admin', 'organizer')
+    @Put('ordem-provas')
+    async salvarOrdemProvas(@Param('campeonatoId') campeonatoId: string, @Body() dto: OrdemProvasDto) {
+        return this.bateriaService.salvarOrdemProvas(campeonatoId, dto.categoriaKey, dto.provaIds);
     }
 
     @ApiBearerAuth('JWT-auth')

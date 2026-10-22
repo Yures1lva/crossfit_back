@@ -28,3 +28,23 @@ export function provaElegivelParaCategoriaKey(
 
     return categoriasOk && sexoOk;
 }
+
+/**
+ * Provas elegíveis da categoria na ordem do cronograma dela. As provas listadas em
+ * `ordemProvas[categoriaKey]` vêm primeiro, na ordem salva; as demais (criadas depois
+ * da última reordenação) seguem pela ordem padrão — `provas` já deve vir ordenado assim.
+ */
+export function provasDaCategoriaOrdenadas<T extends { id: string; categorias?: string[] | null; sexo?: string | null }>(
+    provas: T[],
+    categoriaKey: string,
+    ordemProvas?: Record<string, string[]> | null,
+): T[] {
+    const elegiveis = provas.filter((p) => provaElegivelParaCategoriaKey(p, categoriaKey));
+    const ordem = ordemProvas?.[categoriaKey] ?? [];
+    const posicao = (p: T) => {
+        const idx = ordem.indexOf(p.id);
+        return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
+    };
+    // sort é estável: as que não estão na ordem salva mantêm a ordem padrão entre si
+    return [...elegiveis].sort((a, b) => posicao(a) - posicao(b));
+}

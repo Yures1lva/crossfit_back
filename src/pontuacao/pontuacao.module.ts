@@ -5,9 +5,10 @@ import { PontuacaoService } from './pontuacao.service';
 import { Pontuacao } from './entities/pontuacao.entity';
 import { Prova } from '../prova/entities/prova.entity';
 import { Inscricao } from '../inscricao/entities/inscricao.entity';
+import { BateriaModule } from '../bateria/bateria.module';
 
 @Module({
-    imports: [MikroOrmModule.forFeature([Pontuacao, Prova, Inscricao])],
+    imports: [MikroOrmModule.forFeature([Pontuacao, Prova, Inscricao]), BateriaModule],
     controllers: [PontuacaoController],
     providers: [PontuacaoService],
     exports: [PontuacaoService],

@@ -28,6 +28,9 @@ export class ResponseCampeonatoDto {
     inscricaoFim?: Date;
     docsDataLimite?: Date;
     permitirLaudoNoDia?: boolean;
+    bateriasPorClassificacao: boolean;
+    liderNaUltimaBateria: boolean;
+    ordemProvas: Record<string, string[]>;
     maxInscritos?: number;
     createdAt: Date;
 
@@ -59,6 +62,9 @@ export class ResponseCampeonatoDto {
         this.inscricaoFim = entity.inscricaoFim;
         this.docsDataLimite = entity.docsDataLimite;
         this.permitirLaudoNoDia = entity.permitirLaudoNoDia ?? false;
+        this.bateriasPorClassificacao = entity.bateriasPorClassificacao ?? false;
+        this.liderNaUltimaBateria = entity.liderNaUltimaBateria ?? true;
+        this.ordemProvas = entity.ordemProvas ?? {};
         this.maxInscritos = entity.maxInscritos;
         this.createdAt = entity.createdAt;
     }
