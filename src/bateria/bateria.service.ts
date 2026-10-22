@@ -46,6 +46,7 @@ export class BateriaService {
         bateria.categoriaKey = dto.categoriaKey;
         bateria.nome = dto.nome;
         if (dto.arenaLabel !== undefined) bateria.arenaLabel = dto.arenaLabel;
+        if (dto.dia) bateria.dia = dto.dia;
         if (dto.horaInicio !== undefined) bateria.horaInicio = dto.horaInicio;
         if (dto.horaFim !== undefined) bateria.horaFim = dto.horaFim;
         if (dto.lanes !== undefined) bateria.lanes = dto.lanes;
@@ -60,6 +61,7 @@ export class BateriaService {
         const bateria = await this.findOne(id);
         if (dto.nome !== undefined) bateria.nome = dto.nome;
         if (dto.arenaLabel !== undefined) bateria.arenaLabel = dto.arenaLabel;
+        if (dto.dia !== undefined) bateria.dia = dto.dia || null;
         if (dto.horaInicio !== undefined) bateria.horaInicio = dto.horaInicio;
         if (dto.horaFim !== undefined) bateria.horaFim = dto.horaFim;
         if (dto.lanes !== undefined) bateria.lanes = dto.lanes;

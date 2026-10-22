@@ -178,7 +178,7 @@ export class PontuacaoService {
             (r as any).posicaoGeral = posicaoGeral;
         });
 
-        return { provas: provas.map((p) => ({ id: p.id, nome: p.nome, cor: p.cor, categorias: p.categorias, sexo: p.sexo, horaInicio: p.horaInicio })), rows };
+        return { provas: provas.map((p) => ({ id: p.id, nome: p.nome, cor: p.cor, tipoValor: p.tipoValor, categorias: p.categorias, sexo: p.sexo, horaInicio: p.horaInicio })), rows };
     }
 
     /** Upsert de pontuação. Recalcula posições após salvar. */

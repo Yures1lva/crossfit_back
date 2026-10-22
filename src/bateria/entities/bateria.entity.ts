@@ -31,6 +31,10 @@ export class Bateria {
     @Property({ nullable: true })
     arenaLabel?: string;
 
+    /** Dia da bateria no evento, "YYYY-MM-DD" (texto: sem conversão de fuso) */
+    @Property({ nullable: true, type: 'string' })
+    dia?: string | null;
+
     /** Horário início ex: "08:00" */
     @Property({ nullable: true })
     horaInicio?: string;
