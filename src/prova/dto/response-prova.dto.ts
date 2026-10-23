@@ -7,6 +7,8 @@ export class ResponseProvaDto {
     tipoValor: string;
     unidade?: string;
     timecap?: string;
+    /** "YYYY-MM-DD"; vazio quando as baterias estão em dias diferentes */
+    dia: string | null;
     horaInicio?: string;
     videoUrl?: string;
     tarefas?: string[];
@@ -30,6 +32,7 @@ export class ResponseProvaDto {
         this.tipoValor = prova.tipoValor;
         this.unidade = prova.unidade;
         this.timecap = prova.timecap;
+        this.dia = prova.dia ?? null;
         this.horaInicio = prova.horaInicio;
         this.videoUrl = prova.videoUrl;
         this.tarefas = prova.tarefas;

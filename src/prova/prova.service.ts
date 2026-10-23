@@ -4,6 +4,7 @@ import { EntityRepository, EntityManager } from '@mikro-orm/postgresql';
 import { Prova, StatusProva } from './entities/prova.entity';
 import { CreateProvaDto } from './dto/create-prova.dto';
 import { UpdateProvaDto } from './dto/update-prova.dto';
+import { Bateria } from '../bateria/entities/bateria.entity';
 import { Campeonato } from '../campeonato/entities/campeonato.entity';
 
 @Injectable()
@@ -35,6 +36,7 @@ export class ProvaService {
         if (dto.unidade !== undefined) prova.unidade = dto.unidade;
         if (dto.timecap !== undefined) prova.timecap = dto.timecap;
         if (dto.horaInicio !== undefined) prova.horaInicio = dto.horaInicio;
+        if (dto.dia) prova.dia = dto.dia;
         if (dto.videoUrl !== undefined) prova.videoUrl = dto.videoUrl;
         if (dto.tarefas !== undefined) prova.tarefas = dto.tarefas;
         if (dto.cor !== undefined) prova.cor = dto.cor;
@@ -69,6 +71,15 @@ export class ProvaService {
         if (dto.raiaUnica !== undefined) prova.raiaUnica = dto.raiaUnica;
         if (dto.ordem !== undefined) prova.ordem = dto.ordem;
         if (dto.janelaContestacaoMin !== undefined) prova.janelaContestacaoMin = dto.janelaContestacaoMin;
+
+        // Dia no evento vale para todas as baterias dele (todas as categorias). Limpar o dia
+        // do evento não mexe nas baterias: elas mantêm o dia que já tinham.
+        if (dto.dia !== undefined) {
+            prova.dia = dto.dia || null;
+            if (prova.dia) {
+                await this.em.nativeUpdate(Bateria, { prova: { id: prova.id }, isDeleted: false }, { dia: prova.dia });
+            }
+        }
 
         // Marca (ou limpa) o timestamp de conclusão só na transição de status
         if (dto.status !== undefined && dto.status !== prova.status) {

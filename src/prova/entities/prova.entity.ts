@@ -41,6 +41,13 @@ export class Prova {
     @Property({ nullable: true })
     timecap?: string;
 
+    /**
+     * Dia do evento, "YYYY-MM-DD". Definido aqui, vale para todas as baterias da prova; fica
+     * vazio quando as baterias estão em dias diferentes (cada uma com o seu).
+     */
+    @Property({ nullable: true, type: 'string' })
+    dia?: string | null;
+
     /** Horário de início do evento, formato "HH:mm" */
     @Property({ nullable: true })
     horaInicio?: string;

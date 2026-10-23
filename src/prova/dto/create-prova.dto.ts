@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsOptional, IsBoolean, IsNumber, IsArray } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsBoolean, IsNumber, IsArray, Matches } from 'class-validator';
 import { TipoValorProva, StatusProva, SexoProva } from '../entities/prova.entity';
 
 export class CreateProvaDto {
@@ -16,6 +16,11 @@ export class CreateProvaDto {
     @IsString()
     @IsOptional()
     timecap?: string;
+
+    /** "YYYY-MM-DD"; string vazia limpa o dia */
+    @Matches(/^(\d{4}-\d{2}-\d{2})?$/, { message: 'dia deve estar no formato AAAA-MM-DD' })
+    @IsOptional()
+    dia?: string;
 
     @IsString()
     @IsOptional()

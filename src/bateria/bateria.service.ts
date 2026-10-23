@@ -46,7 +46,9 @@ export class BateriaService {
         bateria.categoriaKey = dto.categoriaKey;
         bateria.nome = dto.nome;
         if (dto.arenaLabel !== undefined) bateria.arenaLabel = dto.arenaLabel;
-        if (dto.dia) bateria.dia = dto.dia;
+        // Sem dia informado, herda o do evento
+        const prova = await this.em.findOne(Prova, { id: dto.provaId });
+        bateria.dia = dto.dia || prova?.dia || null;
         if (dto.horaInicio !== undefined) bateria.horaInicio = dto.horaInicio;
         if (dto.horaFim !== undefined) bateria.horaFim = dto.horaFim;
         if (dto.lanes !== undefined) bateria.lanes = dto.lanes;
@@ -61,7 +63,13 @@ export class BateriaService {
         const bateria = await this.findOne(id);
         if (dto.nome !== undefined) bateria.nome = dto.nome;
         if (dto.arenaLabel !== undefined) bateria.arenaLabel = dto.arenaLabel;
-        if (dto.dia !== undefined) bateria.dia = dto.dia || null;
+        if (dto.dia !== undefined) {
+            bateria.dia = dto.dia || null;
+            // Bateria num dia diferente do evento: as baterias passam a ter dias próprios e o
+            // evento fica sem dia definido.
+            const prova = await this.em.findOne(Prova, { id: (bateria.prova as Prova).id });
+            if (prova?.dia && prova.dia !== bateria.dia) prova.dia = null;
+        }
         if (dto.horaInicio !== undefined) bateria.horaInicio = dto.horaInicio;
         if (dto.horaFim !== undefined) bateria.horaFim = dto.horaFim;
         if (dto.lanes !== undefined) bateria.lanes = dto.lanes;
@@ -267,6 +275,7 @@ export class BateriaService {
                 bateria.categoriaKey = categoriaKey;
                 em.persist(bateria);
             }
+            if (prova.dia) bateria.dia = prova.dia;
             bateria.nome = grupos.length === 1 ? 'Bateria Única' : `Bateria ${idx + 1}`;
             bateria.ordem = idx;
             bateria.lanes = grupo.map((insc, raiaIdx) => ({
