@@ -10,6 +10,7 @@ import cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { json, urlencoded } from 'express';
 import { AllExceptionsFilter } from './common/filters';
+import { fixSupabaseUrls } from './upload/storage/fix-supabase-urls';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -110,6 +111,9 @@ async function bootstrap() {
   const generator = orm.getSchemaGenerator();
   await generator.updateSchema({ safe: true, dropTables: false });
   logger.log('Schema do banco sincronizado');
+
+  // ── URLs antigas do Supabase Storage → MinIO (idempotente)
+  await fixSupabaseUrls(orm);
 
   // ── Start
   const PORT = process.env.PORT ?? 3004;
